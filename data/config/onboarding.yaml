@@ -1,0 +1,171 @@
+﻿# Pen & Paper Onboarding System
+# Phase 11.3: Automated Onboarding
+# Provides automatic instruction manual for new agents
+
+metadata:
+  title: "Pen & Paper System Onboarding"
+  description: "Automated instruction manual for new agents"
+  version: "1.0"
+  last_updated: "2025-12-28"
+
+# Core system overview
+system_overview:
+  name: "Pen & Paper (P&P)"
+  purpose: "Workspace system for AI agents - like a physical notebook on the desk"
+  principle: "Memory = Library | P&P = Notebook on desk"
+  key_concept: "Work from P&P, not from memory searches"
+
+# Essential rules (loaded first)
+core_rules:
+  - "P&P is Workspace, not Storage - extract relevant info from memory, don't copy everything"
+  - "Work only from P&P during execution - no repeated memory searches"
+  - "Critical information goes at TOP or BOTTOM - never in middle (Lost in the Middle research)"
+  - "Optimal document length: 200-300 lines"
+  - "Warning at 250 lines: time to clean up"
+  - "Mandatory action at 300 lines: split or archive completed sections"
+  - "Headers are anchors - maintain logical hierarchy"
+
+# File structure and organization
+file_structure:
+  overview: |
+    usr/pen_and_paper/
+    â”œâ”€â”€ config/
+    â”‚   â”œâ”€â”€ rules.yaml          # System rules (this file)
+    â”‚   â”œâ”€â”€ templates_index.yaml # Available templates
+    â”‚   â””â”€â”€ onboarding.yaml      # This onboarding guide
+    â”œâ”€â”€ templates/               # Template files
+    â”‚   â”œâ”€â”€ agent.md            # Agent profile template
+    â”‚   â””â”€â”€ session.md          # Session template
+    â”œâ”€â”€ sessions/                # Active work sessions
+    â””â”€â”€ vectors/                 # Vectorized content for search
+
+  naming_conventions:
+    files: "lowercase_with_underscores.md"
+    system_files: "Prefix with _ (e.g., _index.md)"
+    sessions: "YYYY-MM-DD_task_name.md"
+    projects: "Project name as directory"
+
+# Session lifecycle
+session_lifecycle:
+  stages:
+    - "New Task â†’ Create: sessions/YYYY-MM-DD_task.md"
+    - "Work â†’ Update progress in session"
+    - "250 lines? â†’ WARNING: Clean up completed steps"
+    - "300 lines? â†’ MANDATORY: Archive completed, keep active only"
+    - "Task done? â†’ Success pattern? â†’ Propose Adaptation"
+    - "Task done? â†’ Move to: sessions/archive/"
+    - "After 90 days in archive â†’ Delete (with summary log)"
+
+  setup_protocol:
+    - "Open new session file: sessions/YYYY-MM-DD_task.md"
+    - "Pull from Memories: User preferences â†’ ## Constraints"
+    - "Pull from Projects: Current task â†’ # Objective"
+    - "Pull from Solutions: Existing recipe? â†’ ## Action Plan"
+
+  consolidation_protocol:
+    - "Learned something new? â†’ Update Solution or create Adaptation"
+    - "Task complete? â†’ Update Project file, archive Session"
+    - "Critical page? â†’ Tag @persistent"
+    - "Pattern identified? â†’ Propose to Adaptations system"
+
+# Formatting guidelines
+formatting:
+  page_layout: |
+    # ðŸŽ¯ Page Title
+    > One-line summary (CRITICAL - put most important info here!)
+
+    ## ðŸ“‹ Context & Status
+    - Current state
+    - Last action
+
+    ## ðŸ§  Main Content
+    (Tables for data, Lists for tasks)
+
+    ## âš¡ Action Items
+    1. [ ] Next step
+    2. [ ] After that
+
+    ## ðŸ“ Notes
+    * Additional context
+
+  data_formats:
+    - "Comparisons, structured data â†’ Markdown Table"
+    - "Processes with order â†’ Numbered List"
+    - "Features without order â†’ Bullet Points"
+    - "Code snippets â†’ Fenced code blocks with language"
+    - "Actionable items â†’ Checkboxes [ ]"
+
+  emojis:
+    good: "## ðŸ› ï¸ Tools (emoji + text)"
+    bad: "## ðŸ› ï¸ (emoji only)"
+    usage: "Use sparingly for visual scanning"
+
+# Template system
+templates:
+  available:
+    - id: "agent"
+      name: "Agent Template"
+      purpose: "Create new agent profiles"
+      file: "templates/agent.md"
+
+    - id: "session"
+      name: "Session Template"
+      purpose: "Start new work sessions"
+      file: "templates/session.md"
+
+  selection_guide:
+    - "Creating agent profiles â†’ Use agent.md template"
+    - "Starting new tasks â†’ Use session.md template"
+    - "Following system structure â†’ Refer to page_layout in rules"
+
+# Integration points
+integration:
+  with_memory: "Extract relevant info from memory â†’ distill into P&P"
+  with_projects: "Update project files when tasks complete"
+  with_adaptations: "Propose patterns for the Adaptations system"
+  with_workflows: "Use workflow templates for complex tasks"
+
+# Error handling
+error_handling:
+  common_issues:
+    - "Document too long â†’ Split or archive completed sections"
+    - "Lost critical info â†’ Check if buried in middle of document"
+    - "Repeated memory searches â†’ Work from P&P only"
+    - "Inconsistent formatting â†’ Follow formatting guidelines"
+
+  recovery_actions:
+    - "Split large documents at 300 lines"
+    - "Move critical info to top/bottom"
+    - "Archive completed work"
+    - "Tag important pages with <!-- @persistent -->"
+
+# Performance tips
+performance_tips:
+  - "Keep documents focused and concise"
+  - "Use clear headers for navigation"
+  - "Regular cleanup prevents accumulation"
+  - "Cross-reference related pages"
+  - "Update index files when creating new pages"
+
+# Quality assurance
+quality_checks:
+  - "Does the document follow the page layout structure?"
+  - "Is critical information at top or bottom?"
+  - "Are there any orphaned action items?"
+  - "Does the document exceed 300 lines?"
+  - "Are all cross-references working?"
+
+# Getting help
+help_resources:
+  - "rules.yaml - Complete system rules"
+  - "templates/ - Template files for common tasks"
+  - "Existing sessions - Examples of good P&P usage"
+  - "Adaptation system - For proposing improvements"
+
+# Migration notes
+migration:
+  from: "usr/pen_and_paper/_system/_rules.md"
+  to: "usr/pen_and_paper/config/"
+  completed_at: "2025-12-28"
+  status: "active"
+

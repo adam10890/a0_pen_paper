@@ -1,0 +1,6 @@
+﻿runtime_dir: usr/pen_and_paper
+vectorize_by_default: true
+retrieve_context_by_default: true
+context_loader_enabled: true
+context_loader_first_iteration_only: true
+max_active_sessions_in_context: 5
