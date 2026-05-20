@@ -1,8 +1,12 @@
-﻿### pen_paper
+### pen_paper
 
 Structured working-notes tool for complex tasks. Use it as a scratchpad for
 multi-step reasoning, implementation plans, findings, decisions, results, and
 backtrack items.
+
+**First use in a session:** read `data/templates/_start_here.md`. It is the
+operating manual (~80 lines) and points you to `_index.md` for everything
+else. Do not skip it.
 
 #### Arguments
 
@@ -62,3 +66,7 @@ List active workspaces:
 Use Pen & Paper for tasks with meaningful state across multiple steps. Avoid
 using it for simple one-shot answers. Keep updates concise and only record
 information that helps continue or audit the task.
+
+For anything beyond the schema above (rules, lifecycle, splitting, archiving,
+interaction with `llm_wiki`), consult `data/templates/_start_here.md` and
+`data/templates/_index.md` — that's where the methodology lives.
