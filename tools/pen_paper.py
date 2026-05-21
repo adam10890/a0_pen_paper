@@ -771,23 +771,49 @@ class PenPaper(Tool):
                 break_loop=False
             )
 
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Conservative token estimate for mixed Hebrew/English content.
+
+        Uses len//3 (not the English-only len//4) because Hebrew characters
+        tokenize at ~2-3 chars per token rather than ~4.
+        """
+        return max(1, len(text) // 3) if text else 0
+
+    def _workspace_token_estimate(self, workspace: dict) -> dict:
+        """Calculate token estimates for the full workspace and each section."""
+        by_section: dict = {}
+        total = 0
+        for sec in self.VALID_SECTIONS:
+            entries = workspace.get(sec, [])
+            sec_tokens = sum(
+                self._estimate_tokens(e.get("content", "")) for e in entries
+            )
+            by_section[sec] = sec_tokens
+            total += sec_tokens
+        metadata_tokens = self._estimate_tokens(
+            json.dumps(workspace.get("metadata", {}))
+        )
+        total += metadata_tokens
+        return {"total": total, "by_section": by_section, "metadata": metadata_tokens}
+
     async def _read_workspace(self, name: str, section: str | None = None) -> Response:
         """Read workspace or specific section"""
-        
+
 
         workspace_file = self._get_workspace_file(name)
-        
+
 
         if not Path(workspace_file).exists():
             return Response(
                 message=f"❌ Workspace '{name}' not found.",
                 break_loop=False
             )
-        
+
 
         try:
             workspace = json.loads(files.read_file(workspace_file))
-            
+
 
             if section:
                 # Read specific section
@@ -796,29 +822,37 @@ class PenPaper(Tool):
                         message=f"❌ Section '{section}' not found in workspace '{name}'.",
                         break_loop=False
                     )
-                
+
 
                 section_data = workspace[section]
-                
+
 
                 if not section_data:
                     return Response(
                         message=f"📭 Section **{section}** in workspace '{name}' is empty.",
                         break_loop=False
                     )
-                
+
 
                 output = f"# {section.upper()} - {name}\n\n"
-                
+
 
                 for i, entry in enumerate(section_data, 1):
                     timestamp = entry.get('timestamp', 'unknown')[:16]
                     output += f"### Entry {i} ({timestamp})\n"
                     output += f"{entry.get('content', '')}\n\n"
-                
+
+                section_tokens = sum(
+                    self._estimate_tokens(e.get("content", ""))
+                    for e in section_data
+                )
+                output += (
+                    f"\n<!-- __token_estimate__: {section_tokens} "
+                    f"section={section} workspace={name} -->"
+                )
 
                 return Response(message=output, break_loop=False)
-            
+
 
             else:
                 # Read full summary
@@ -827,42 +861,47 @@ class PenPaper(Tool):
                 output += f"**Created:** {workspace['metadata'].get('created_at', 'unknown')[:16]}\n"
                 output += f"**Agent:** {workspace['metadata'].get('agent', 'unknown')}\n"
                 output += f"**Ephemeral:** {workspace['metadata'].get('ephemeral', False)}\n\n"
-                
+
 
                 # Count entries
                 output += "## Summary\n\n"
                 output += "| Section | Entries |\n"
                 output += "|---------|--------|\n"
-                
+
 
                 total = 0
                 for sec in self.VALID_SECTIONS:
                     count = len(workspace.get(sec, []))
                     total += count
                     output += f"| {sec} | {count} |\n"
-                
+
 
                 output += f"| **Total** | **{total}** |\n\n"
-                
+
 
                 # Show recent entries from each non-empty section
                 for sec in self.VALID_SECTIONS:
                     entries = workspace.get(sec, [])
                     if entries:
                         output += f"## Recent {sec.title()} ({len(entries)} total)\n\n"
-                        
+
 
                         # Show last 2 entries
                         for entry in entries[-2:]:
                             content = entry.get('content', '')[:150]
                             output += f"- {content}{'...' if len(entry.get('content', '')) > 150 else ''}\n"
-                        
+
 
                         output += "\n"
-                
+
+                token_est = self._workspace_token_estimate(workspace)
+                output += (
+                    f"\n<!-- __token_estimate__: {token_est['total']} "
+                    f"workspace={name} -->"
+                )
 
                 return Response(message=output, break_loop=False)
-                
+
 
         except Exception as e:
             return Response(
