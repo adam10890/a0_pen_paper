@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 import json
 import shutil
 
@@ -22,7 +22,7 @@ def _copy_missing(src: Path, dst: Path) -> None:
     shutil.copy2(src, dst)
 
 
-def install():
+def install(**kwargs):
     plugin_dir = Path(__file__).resolve().parent
     runtime_dir = Path(files.get_abs_path(RUNTIME_BASE))
 
