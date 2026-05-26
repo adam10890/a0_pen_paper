@@ -1,7 +1,7 @@
 ﻿name: a0_pen_paper
 title: Pen & Paper
 description: Structured thinking workspace tool with local sessions, templates, optional vector recall, install-safe runtime storage, and LLM Wiki template integration.
-version: 1.1.2
+version: 1.2.0
 author: "frantz"
 settings_sections:
   - agent

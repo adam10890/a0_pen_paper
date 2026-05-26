@@ -1,0 +1,167 @@
+<html>
+<head>
+    <title>Pen &amp; Paper</title>
+    <script type="module" src="/plugins/a0_pen_paper/webui/workflows-store.js"></script>
+</head>
+<body>
+    <div x-data="penPaperConfig()" x-init="init()">
+        <template x-if="config">
+            <div>
+                <div class="section-title">Pen &amp; Paper</div>
+                <div class="section-description">
+                    מחברת עבודה מובנית (סשנים + תבניות workflows). שמירת הגדרות כאן משפיעה על ה-scope הנוכחי (Global / Project / Agent).
+                </div>
+
+                <!-- LLM Wiki -->
+                <div class="section-title" style="margin-top: 1rem;">LLM Wiki</div>
+                <div class="section-description">
+                    כשמופעל, נטענים כלי <code>pen_paper_wiki_template</code> ופרומפט Wiki. אין תלות חובה בפלאגין <code>llm_wiki</code> — רק גישה ל-vault בקבצים.
+                </div>
+
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">חיבור LLM Wiki</div>
+                        <div class="field-description">
+                            הפעל גילוי תבניות מ-SharedBrain / vault.
+                            <span x-show="config.llm_wiki_integration?.enabled" style="color: var(--color-highlight);"> — פעיל</span>
+                            <span x-show="!config.llm_wiki_integration?.enabled"> — כבוי</span>
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <label class="toggle">
+                            <input type="checkbox" x-model="config.llm_wiki_integration.enabled" />
+                            <span class="toggler"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="field" x-show="config.llm_wiki_integration?.enabled">
+                    <div class="field-label">
+                        <div class="field-title">נתיב Vault</div>
+                        <div class="field-description">
+                            נתיב מוחלט ל-SharedBrain (ריק = גילוי אוטומטי לפי פרויקט / משתני סביבה).
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <input type="text" x-model="config.llm_wiki_integration.vault_path" placeholder="/a0/path/to/SharedBrain" />
+                    </div>
+                </div>
+
+                <div class="field" x-show="config.llm_wiki_integration?.enabled">
+                    <div class="field-label">
+                        <div class="field-title">מגבלות Wiki</div>
+                        <div class="field-description">מקסימום תבניות ברשימה / תצוגה מקדימה / טעינה מלאה (תווים).</div>
+                    </div>
+                    <div class="field-control" style="display:flex;flex-direction:column;gap:0.35rem;align-items:stretch;">
+                        <input type="number" min="1" x-model.number="config.llm_wiki_integration.max_templates_per_list" placeholder="20" />
+                        <input type="number" min="100" x-model.number="config.llm_wiki_integration.max_preview_chars" placeholder="500" />
+                        <input type="number" min="500" x-model.number="config.llm_wiki_integration.max_full_load_chars" placeholder="3000" />
+                    </div>
+                </div>
+
+                <!-- Workflows Canvas -->
+                <div class="section-title" style="margin-top: 1.25rem;">Workflows</div>
+                <div class="section-description">
+                    עריכה בזמן אמת ב-Canvas — אותם קבצים כמו <code>pen_paper</code> (<code>edit_template</code> וכו').
+                </div>
+
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">עורך ב-Canvas</div>
+                    </div>
+                    <div class="field-control">
+                        <button class="btn btn-field" type="button" @click="$store.penPaperWorkflows?.openInCanvas()">
+                            פתח Workflows ב-Canvas
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Features -->
+                <div class="section-title" style="margin-top: 1.25rem;">תכונות</div>
+
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">שליפת הקשר ביצירת סשן</div>
+                        <div class="field-description">כבוי כברירת מחדל (vector ב-roadmap).</div>
+                    </div>
+                    <div class="field-control">
+                        <label class="toggle">
+                            <input type="checkbox" x-model="config.features.retrieve_context_on_create" />
+                            <span class="toggler"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">וקטוריזציה בסגירת סשן</div>
+                    </div>
+                    <div class="field-control">
+                        <label class="toggle">
+                            <input type="checkbox" x-model="config.features.vectorize_on_close" />
+                            <span class="toggler"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Maintenance -->
+                <div class="section-title" style="margin-top: 1.25rem;">תחזוקה</div>
+                <div class="section-description">
+                    מרשימת הפלאגינים: <strong>Execute</strong> מריץ בדיקת בריאות (validate + smoke) — לא נדרש אתחול קונטיינר.
+                    אם חסר runtime, הרץ פעם אחת <code>install</code> מהטרמינל או Execute אחרי עדכון.
+                </div>
+                <div class="field" x-show="lastExecute">
+                    <div class="field-label">
+                        <div class="field-title">הרצה אחרונה (Execute)</div>
+                        <div class="field-description" x-text="lastExecute"></div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <script>
+        function penPaperConfig() {
+            return {
+                lastExecute: "",
+                init() {
+                    this.$nextTick(() => this.ensureConfigShape());
+                    this.loadExecuteRecord();
+                },
+                ensureConfigShape() {
+                    const c = this.config;
+                    if (!c) return;
+                    c.features = c.features || {};
+                    if (c.features.retrieve_context_on_create === undefined) {
+                        c.features.retrieve_context_on_create = false;
+                    }
+                    if (c.features.vectorize_on_close === undefined) {
+                        c.features.vectorize_on_close = false;
+                    }
+                    c.llm_wiki_integration = c.llm_wiki_integration || {};
+                    const w = c.llm_wiki_integration;
+                    if (w.enabled === undefined) w.enabled = false;
+                    if (w.vault_path === undefined) w.vault_path = "";
+                    if (w.max_templates_per_list === undefined) w.max_templates_per_list = 20;
+                    if (w.max_preview_chars === undefined) w.max_preview_chars = 500;
+                    if (w.max_full_load_chars === undefined) w.max_full_load_chars = 3000;
+                    c.session = c.session || {};
+                    if (c.session.max_active_sessions_in_context === undefined) {
+                        c.session.max_active_sessions_in_context = 5;
+                    }
+                },
+                async loadExecuteRecord() {
+                    try {
+                        const r = await fetch("/plugins/a0_pen_paper/execute_record.json");
+                        if (!r.ok) return;
+                        const rec = await r.json();
+                        const ok = rec.exit_code === 0;
+                        const when = rec.executed_at || "?";
+                        this.lastExecute = (ok ? "הצליח" : "נכשל (קוד " + rec.exit_code + ")") + " — " + when;
+                    } catch (_) {}
+                },
+            };
+        }
+    </script>
+</body>
+</html>

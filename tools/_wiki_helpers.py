@@ -196,6 +196,8 @@ def find_llm_wiki_vault() -> Optional[Path]:
     config_paths = [
         _script_dir / "usr/plugins/llm_wiki/config.json",
         _script_dir / "usr/plugins/llm_wiki/default_config.yaml",
+        Path("/a0/usr/plugins/llm_wiki/config.json"),
+        Path("/a0/usr/plugins/llm_wiki/default_config.yaml"),
     ]
     
     for config_path in config_paths:
@@ -223,6 +225,8 @@ def find_llm_wiki_vault() -> Optional[Path]:
         Path("."),
         Path(".."),
         Path("../SharedBrain"),
+        Path("/data/SharedBrain"),
+        Path("/a0/SharedBrain"),
     ]
     
     for base in candidates:
@@ -233,23 +237,83 @@ def find_llm_wiki_vault() -> Optional[Path]:
     return None
 
 
+def _normalize_registry(registry: Any) -> Dict[str, Any]:
+    """Normalize registry structure so callers can safely use dict/list access."""
+    if not isinstance(registry, dict):
+        registry = {}
+    wikis = registry.get("wikis")
+    if not isinstance(wikis, list):
+        wikis = []
+    grants = registry.get("grants")
+    if not isinstance(grants, dict):
+        grants = {}
+    registry["wikis"] = [w for w in wikis if isinstance(w, dict)]
+    registry["grants"] = grants
+    return registry
+
+
+def _parse_registry_manual(content: str) -> Dict[str, Any]:
+    """Small SharedBrain registry parser for fields this tool needs."""
+    registry: Dict[str, Any] = {"wikis": [], "grants": {}}
+    current = None
+    current_wiki = None
+    current_agent = None
+    for raw in content.splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip())
+        if indent == 0 and stripped.endswith(":"):
+            current = stripped[:-1]
+            current_wiki = None
+            current_agent = None
+            continue
+        if current == "wikis":
+            if stripped.startswith("- "):
+                current_wiki = {}
+                registry["wikis"].append(current_wiki)
+                rest = stripped[2:].strip()
+                if ":" in rest:
+                    k, _, v = rest.partition(":")
+                    current_wiki[k.strip()] = _parse_scalar(v.strip())
+            elif current_wiki is not None and ":" in stripped:
+                k, _, v = stripped.partition(":")
+                current_wiki[k.strip()] = _parse_scalar(v.strip())
+        elif current == "grants":
+            if indent == 2 and stripped.endswith(":"):
+                current_agent = stripped[:-1]
+                registry["grants"][current_agent] = {}
+            elif current_agent and ":" in stripped:
+                k, _, v = stripped.partition(":")
+                registry["grants"][current_agent][k.strip()] = _parse_scalar(v.strip())
+    return registry
+
+
 def parse_registry(vault_root: Path) -> Dict[str, Any]:
-    """
-    Parse registry.yaml from vault root.
-    
-    Returns dict with 'wikis' list and 'grants' structure.
-    On error, returns empty dict.
-    """
+    """Parse registry.yaml and always return normalized {'wikis': list, 'grants': dict}."""
     registry_path = vault_root / "registry.yaml"
     if not registry_path.exists():
-        return {}
-    
+        return _normalize_registry({})
     try:
         content = registry_path.read_text(encoding="utf-8")
-        return _parse_yaml_minimal(content)
     except Exception:
-        return {}
-
+        return _normalize_registry({})
+    try:
+        import yaml  # type: ignore
+        return _normalize_registry(yaml.safe_load(content) or {})
+    except Exception:
+        pass
+    try:
+        parsed = _parse_registry_manual(content)
+        if parsed.get("wikis"):
+            return _normalize_registry(parsed)
+    except Exception:
+        pass
+    try:
+        return _normalize_registry(_parse_yaml_minimal(content))
+    except Exception:
+        return _normalize_registry({})
 
 def scan_wiki_for_templates(wiki_path: Path) -> List[Dict[str, Any]]:
     """

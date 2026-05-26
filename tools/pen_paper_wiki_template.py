@@ -4,7 +4,7 @@ pen_paper_wiki_template — discover and load wiki pages as Pen & Paper workflow
 Read-only tool that scans LLM Wiki SharedBrain vault for pages tagged with
 `type: pen_paper_template` in YAML frontmatter. Returns template metadata
 and session-payload blobs that agents can feed into the existing pen_paper
-tool's create_session action.
+tool's `create` action as initial content.
 
 Context-window safeguards:
 - Max 20 templates per list
@@ -41,6 +41,7 @@ except Exception:
     files = _FilesFallback()
 
 try:
+    from ._config import load_plugin_config, wiki_settings
     from ._wiki_helpers import (
         find_llm_wiki_vault,
         parse_registry,
@@ -55,6 +56,7 @@ except ImportError:
     _here = os.path.dirname(os.path.abspath(__file__))
     if _here not in sys.path:
         sys.path.insert(0, _here)
+    from _config import load_plugin_config, wiki_settings
     from _wiki_helpers import (
         find_llm_wiki_vault,
         parse_registry,
@@ -110,9 +112,42 @@ class PenPaperWikiTemplate(Tool):
             pass
         return "agent_zero"
 
+    def _get_config(self) -> Dict[str, Any]:
+        try:
+            return load_plugin_config(agent=getattr(self, "agent", None))
+        except Exception:
+            return {}
+
+    def _integration_disabled_message(self, cfg: Dict[str, Any]) -> Optional[str]:
+        block = cfg.get("llm_wiki_integration") if isinstance(cfg, dict) else None
+        if isinstance(block, dict) and block.get("enabled") is False:
+            return "Pen & Paper LLM Wiki integration is disabled in plugin config (`llm_wiki_integration.enabled=false`)."
+        return None
+
+    def _resolve_vault(self, cfg: Dict[str, Any]) -> Optional[Path]:
+        settings = wiki_settings(cfg) if isinstance(cfg, dict) else {}
+        configured = settings.get("vault_path") or ""
+        if configured:
+            vault = Path(str(configured)).expanduser()
+            if vault.exists() and (vault / "registry.yaml").exists():
+                return vault
+        return find_llm_wiki_vault()
+
+    def _limits(self, cfg: Dict[str, Any]) -> tuple[int, int, int]:
+        settings = wiki_settings(cfg) if isinstance(cfg, dict) else {}
+        return (
+            int(settings.get("max_templates_per_list") or MAX_TEMPLATES_PER_LIST),
+            int(settings.get("max_preview_chars") or MAX_PREVIEW_CHARS),
+            int(settings.get("max_full_load_chars") or MAX_FULL_LOAD_CHARS),
+        )
+
     async def _list_templates(self):
         """List all wiki pages tagged as pen_paper_template."""
-        vault = find_llm_wiki_vault()
+        cfg = self._get_config()
+        disabled = self._integration_disabled_message(cfg)
+        if disabled:
+            return Response(message=disabled, break_loop=False)
+        vault = self._resolve_vault(cfg)
         if not vault:
             return Response(
                 message=(
@@ -137,6 +172,7 @@ class PenPaperWikiTemplate(Tool):
         registry = parse_registry(vault)
         all_templates = []
 
+        max_templates, _, _ = self._limits(cfg)
         wikis = registry.get("wikis", [])
         if not wikis:
             return Response(
@@ -145,8 +181,9 @@ class PenPaperWikiTemplate(Tool):
             )
 
         # Access control: check grants
-        grants = registry.get("grants", {}).get(agent_id, {})
-        readable = grants.get("read", [])
+        grants_root = registry.get("grants") or {}
+        grants = grants_root.get(agent_id, {}) if isinstance(grants_root, dict) else {}
+        readable = grants.get("read", ["*"]) if isinstance(grants, dict) else ["*"]
 
         for wiki_entry in wikis:
             wiki_name = wiki_entry.get("name")
@@ -174,7 +211,7 @@ class PenPaperWikiTemplate(Tool):
                 all_templates.append(tmpl)
 
         # Cap at MAX_TEMPLATES_PER_LIST
-        all_templates = all_templates[:MAX_TEMPLATES_PER_LIST]
+        all_templates = all_templates[:max_templates]
 
         # Save to cache
         cache_data = {
@@ -230,7 +267,11 @@ class PenPaperWikiTemplate(Tool):
                 break_loop=False,
             )
 
-        vault = find_llm_wiki_vault()
+        cfg = self._get_config()
+        disabled = self._integration_disabled_message(cfg)
+        if disabled:
+            return Response(message=disabled, break_loop=False)
+        vault = self._resolve_vault(cfg)
         if not vault:
             return Response(
                 message="No SharedBrain vault configured.",
@@ -324,10 +365,10 @@ class PenPaperWikiTemplate(Tool):
             parts.append(f"**Triggers:** {', '.join(triggers)}")
             parts.append("")
 
-        # Preview body (first 500 chars)
-        preview = body[:MAX_PREVIEW_CHARS]
-        if len(body) > MAX_PREVIEW_CHARS:
-            preview += "\n_[truncated — use `load_full=true` to get full content]_"
+        _, max_preview_chars, _ = self._limits(cfg)
+        preview = body[:max_preview_chars]
+        if len(body) > max_preview_chars:
+            preview += "\n_[truncated]_"
         
         parts.extend([
             "**Preview:**",
@@ -340,19 +381,19 @@ class PenPaperWikiTemplate(Tool):
         # Generate session_payload blob
         session_payload = self._generate_session_payload(target_template, frontmatter)
         parts.extend([
-            "**Session Payload** (pass to pen_paper.create_session):",
+            "**Session Payload** (copy into `pen_paper` create `content`, or use as a future payload source):",
             "```json",
             session_payload,
             "```",
             "",
-            "To create a session with this template, call the pen_paper tool with:",
-            f"`action=create_session title=<your title> template_payload='{session_payload}'`",
+            "To create a session with this template today, call:",
+            "`pen_paper(action=\"create\", name=\"your_task\", content=<session payload or selected template notes>)`",
         ])
 
         return Response(message="\n".join(parts), break_loop=False)
 
     def _generate_session_payload(self, template: Dict[str, Any], frontmatter: Dict[str, Any]) -> str:
-        """Generate a session payload blob for pen_paper.create_session."""
+        """Generate a session payload blob suitable for pen_paper create content."""
         phases = template.get("phases", [])
         
         # Build initial sections based on phases
