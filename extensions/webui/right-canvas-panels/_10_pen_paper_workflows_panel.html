@@ -1,0 +1,11 @@
+<div
+  class="right-canvas-surface-panel pnpwf-canvas-surface"
+  data-surface-id="pen_paper_workflows"
+  :class="{
+    'is-active': $store.rightCanvas?.isSurfaceVisible('pen_paper_workflows'),
+    'is-mounted': $store.rightCanvas?.isSurfaceRendered('pen_paper_workflows')
+  }"
+  :aria-hidden="(!$store.rightCanvas?.isSurfaceVisible('pen_paper_workflows')).toString()"
+>
+  <x-component path="/plugins/a0_pen_paper/webui/workflows-panel.html" mode="canvas"></x-component>
+</div>

@@ -71,31 +71,25 @@ def copy_seed_files(runtime_dir):
 
 def init_template_registry(runtime_dir):
     """Initialize template registry if it doesn't exist."""
+    plugin_dir = get_plugin_dir()
     registry_path = runtime_dir / "knowledge/workflows/template_registry.json"
-    
+    seed_registry = plugin_dir / "data/workflows/template_registry.seed.json"
+    wf_seed = plugin_dir / "data/workflows"
+    wf_dir = runtime_dir / "knowledge/workflows"
+
+    if wf_seed.is_dir():
+        for md in wf_seed.glob("*.md"):
+            dst = wf_dir / md.name
+            if not dst.exists():
+                shutil.copy2(md, dst)
+                print(f"Copied workflow: {md.name}")
+
     if not registry_path.exists():
-        registry = {
-            "templates": {
-                "session": {
-                    "file": "session.md",
-                    "description": "General structured working session",
-                    "description_he": "סשן עבודה מובנה כללי",
-                    "phases": ["Plan", "Work", "Review"],
-                    "triggers": ["session", "notes", "planning", "task", "סשן", "תכנון"],
-                }
-            },
-            "base_workflows": {
-                "list": ["research", "debugging", "validation"],
-                "hooks": {
-                    "on_unknown": "research",
-                    "on_stuck": "debugging",
-                    "on_error": "debugging",
-                    "on_complete": "validation",
-                },
-            },
-        }
-        registry_path.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
-        print(f"Created: template_registry.json")
+        if seed_registry.exists():
+            shutil.copy2(seed_registry, registry_path)
+        else:
+            registry_path.write_text("{}", encoding="utf-8")
+        print("Created: template_registry.json")
 
 
 def run_install():
@@ -181,6 +175,21 @@ def run_validate():
             print(f"  version: {config.get('version', 'N/A')}")
             print(f"  always_enabled: {config.get('always_enabled', 'N/A')}")
     
+    try:
+        from usr.plugins.a0_pen_paper.helpers.workflows_store import validate_registry_integrity
+        from usr.plugins.a0_pen_paper.tools._config import load_plugin_config
+
+        integrity = validate_registry_integrity(load_plugin_config())
+        if integrity:
+            print("\nRegistry integrity issues:")
+            for err in integrity:
+                print(f"  ✗ {err}")
+            all_valid = False
+        else:
+            print("\n  ✓ template_registry integrity")
+    except Exception as e:
+        print(f"\n  ⚠ registry integrity check skipped: {e}")
+
     return 0 if all_valid else 1
 
 

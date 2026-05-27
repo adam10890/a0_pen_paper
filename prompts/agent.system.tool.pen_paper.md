@@ -14,8 +14,8 @@ else. Do not skip it.
   `list_templates`, `create_template`, `edit_template`, `delete_template`,
   `use_template`
 - `name`: workspace name
-- `section`: `findings`, `results`, `insights`, `notes`, `decisions`,
-  `backtrack`
+- `section`: optional for `read`; if omitted, `read` returns the full workspace summary.
+  For `update`, use one of `findings`, `results`, `insights`, `notes`, `decisions`, `backtrack`.
 - `content`: text to add to a section
 - `template`: optional template name for `create`
 - `template_name`: template name for template actions

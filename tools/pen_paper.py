@@ -1,4 +1,4 @@
-﻿"""
+"""
 Pen & Paper Tool
 ניהול מרחב עבודה זמני למשימות מורכבות - כמו פנקס וניירות עבודה
 
@@ -7,7 +7,18 @@ Location: usr/plugins/a0_pen_paper/tools/pen_paper.py
 
 import json
 import shutil
-import yaml
+try:
+    import yaml
+except Exception:
+    yaml = None
+
+try:
+    from ._wiki_helpers import _parse_yaml_minimal
+except Exception:
+    try:
+        from _wiki_helpers import _parse_yaml_minimal
+    except Exception:
+        _parse_yaml_minimal = None
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -25,11 +36,12 @@ class PenPaper(Tool):
     # Valid sections for workspace
     VALID_SECTIONS = [
         "findings",
-        "results", 
+        "results",
         "insights",
         "notes",
         "decisions",
-        "backtrack"
+        "backtrack",
+        "execution_log",
     ]
     
     # Onboarding config path
@@ -43,7 +55,11 @@ class PenPaper(Tool):
         if Path(onboarding_path).exists():
             try:
                 content = files.read_file(onboarding_path)
-                return yaml.safe_load(content)
+                if yaml is not None:
+                    return yaml.safe_load(content) or {}
+                if _parse_yaml_minimal is not None:
+                    return _parse_yaml_minimal(content) or {}
+                return {}
             except Exception as e:
                 print(f"Failed to load onboarding config: {e}")
         return {}
@@ -160,11 +176,21 @@ class PenPaper(Tool):
         
         action = self.args.get("action", "list")
         name = self.args.get("name", "")
-        section = self.args.get("section", "notes")
+        # For read, omitted section means full workspace summary. For update, default to notes.
+        section = self.args.get("section", None if action == "read" else "notes")
         content = self.args.get("content", "")
         ephemeral = self.args.get("ephemeral", False)
-        retrieve_context = self.args.get("retrieve_context", True)
-        vectorize = self.args.get("vectorize", True)
+        from usr.plugins.a0_pen_paper.tools._config import load_plugin_config, feature_enabled
+
+        cfg = load_plugin_config(agent=getattr(self, "agent", None))
+        retrieve_context = self.args.get(
+            "retrieve_context",
+            feature_enabled(cfg, "retrieve_context_on_create"),
+        )
+        vectorize = self.args.get(
+            "vectorize",
+            feature_enabled(cfg, "vectorize_on_close"),
+        )
         template = self.args.get("template", None)
         
         # Handle help action first
@@ -231,7 +257,7 @@ class PenPaper(Tool):
                 self.args.get("phases", []),
                 self.args.get("triggers", []),
                 self.args.get("triggers_he", []),
-                self.args.get("content", "")
+                self.args.get("content", self.args.get("template_content", ""))
             )
 
         elif action == "edit_template":
@@ -339,7 +365,8 @@ class PenPaper(Tool):
         result = {
             "phases": template_data.get("phases", []),
             "description": template_data.get("description", ""),
-            "triggers": template_data.get("triggers", [])
+            "triggers": template_data.get("triggers", []),
+            "version": template_data.get("version", "1.0.0"),
         }
         
         if Path(template_path).exists():
@@ -457,7 +484,20 @@ class PenPaper(Tool):
         template_data = self._load_template_content(template_name)
         if not template_data:
             return Response(message=f"Template '{template_name}' not found.", break_loop=False)
-        return await self._create_workspace(workspace_name, retrieve_context=True, template=template_name)
+
+        template_body = template_data.get("content", "") or ""
+        for key, value in (variables or {}).items():
+            template_body = template_body.replace("{{" + str(key) + "}}", str(value))
+
+        from usr.plugins.a0_pen_paper.tools._config import load_plugin_config, feature_enabled
+
+        cfg = load_plugin_config(agent=getattr(self, "agent", None))
+        return await self._create_workspace(
+            workspace_name,
+            retrieve_context=feature_enabled(cfg, "retrieve_context_on_create"),
+            template=template_name,
+            content=template_body,
+        )
 
     async def _create_workspace(self, name: str, retrieve_context: bool = True, template: str | None = None, content: str = "") -> Response:
         """Create a new workspace with optional context retrieval, template, and initial content"""
@@ -491,7 +531,8 @@ class PenPaper(Tool):
             "insights": [],
             "notes": [],
             "decisions": [],
-            "backtrack": []
+            "backtrack": [],
+            "execution_log": [],
         }
 
         # Add initial content to notes if provided
@@ -507,7 +548,8 @@ class PenPaper(Tool):
         if template:
             template_data = self._load_template_content(template)
             if template_data:
-                tmpl = template_data.get("template", {})
+                tmpl = template_data.get("template") if isinstance(template_data.get("template"), dict) else template_data
+                workspace["metadata"]["template_version"] = tmpl.get("version", "1.0.0")
                 phases = tmpl.get("phases", [])
                 description = tmpl.get("description", "")
                 
@@ -724,14 +766,26 @@ class PenPaper(Tool):
             workspace = json.loads(files.read_file(workspace_file))
             
 
-            # Check if closed
-            if workspace["metadata"].get("status") == "closed":
-                return Response(
-                    message=f"❌ Workspace '{name}' is closed.\n"
-                           f"Create a new workspace to continue work.",
-                    break_loop=False
-                )
-            
+            from usr.plugins.a0_pen_paper.helpers.workflow_executor import WorkflowExecutor
+
+            executor = WorkflowExecutor()
+            pre = executor.pre_update(workspace, section)
+            if not pre.ok:
+                return Response(message=f"❌ {pre.message}", break_loop=False)
+
+            if section == "execution_log":
+                log_check = executor.validate_execution_log_entry(content)
+                if not log_check.ok:
+                    return Response(message=f"❌ {log_check.message}", break_loop=False)
+                try:
+                    data = json.loads(content) if content.strip().startswith("{") else {}
+                    step_id = data.get("step_id")
+                    if step_id:
+                        idem = executor.check_step_idempotent(workspace, step_id)
+                        if not idem.ok:
+                            return Response(message=f"❌ {idem.message}", break_loop=False)
+                except json.JSONDecodeError:
+                    pass
 
             # Create entry
             entry = {
@@ -739,7 +793,6 @@ class PenPaper(Tool):
                 "content": content,
                 "agent": self.agent.agent_name
             }
-            
 
             # Ensure section exists
             if section not in workspace:
@@ -926,7 +979,12 @@ class PenPaper(Tool):
 
         try:
             workspace = json.loads(files.read_file(workspace_file))
-            
+
+            from usr.plugins.a0_pen_paper.helpers.workflow_executor import WorkflowExecutor
+
+            pre = WorkflowExecutor().pre_close(workspace)
+            if not pre.ok:
+                return Response(message=f"❌ {pre.message}", break_loop=False)
 
             # Check if already closed
             if workspace["metadata"].get("status") == "closed":
@@ -934,7 +992,6 @@ class PenPaper(Tool):
                     message=f"⚠️ Workspace '{name}' is already closed.",
                     break_loop=False
                 )
-            
 
             # Update metadata
             workspace["metadata"]["status"] = "closed"

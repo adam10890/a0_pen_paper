@@ -1,0 +1,21 @@
+<html
+  class="surface-modal pnpwf-modal modal-no-backdrop"
+  data-surface-id="pen_paper_workflows"
+  data-surface-modal-path="/plugins/a0_pen_paper/webui/main.html"
+  data-surface-dock-title="Open Workflows in canvas"
+  data-surface-dock-icon="dock_to_right"
+  data-canvas-surface="pen_paper_workflows"
+  data-canvas-modal-path="/plugins/a0_pen_paper/webui/main.html"
+  data-canvas-dock-title="Open Workflows in canvas"
+  data-canvas-dock-icon="dock_to_right"
+>
+<head>
+  <title>Workflows</title>
+  <script type="module">
+    import { store } from "/plugins/a0_pen_paper/webui/workflows-store.js";
+  </script>
+</head>
+<body class="pnpwf-modal-body">
+  <x-component path="/plugins/a0_pen_paper/webui/workflows-panel.html" mode="modal"></x-component>
+</body>
+</html>
