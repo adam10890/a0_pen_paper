@@ -1,45 +1,45 @@
-﻿# Pen & Paper Rules Configuration
+# Pen & Paper Rules Configuration
 # Converted from Markdown rules to YAML format
 # Phase 11.1: Rules Migration
 
 metadata:
   title: "Global Rules for Pen & Paper"
-  description: "×—×•×§×™ ×›×ª×™×‘×” ×•× ×™×”×•×œ ×“×¤×™× ×‘×ž×¢×¨×›×ª P&P"
+  description: "חוקי כתיבה וניהול דפים במערכת P&P"
   last_updated: "2025-01-26"
   status: "active"
   version: "1.0"
 
 core_principle:
-  description: "Memory = ×”×¡×¤×¨×™×™×” | P&P = ×”×ž×—×‘×¨×ª ×¢×œ ×”×©×•×œ×—×Ÿ"
+  description: "Memory = הספרייה | P&P = המחברת על השולחן"
   rules:
-    - "P&P ×”×•× Workspace, ×œ× Storage"
-    - "×¢×•×‘×“×™× ×¨×§ ×ž×•×œ ×”-P&P (×œ× ×—×™×¤×•×© ×—×•×–×¨ ×‘×–×™×›×¨×•×Ÿ)"
-    - "×ž×–×§×§×™× ×ž×™×“×¢ ×ž×”×–×™×›×¨×•×Ÿ ×œ×ª×•×š P&P, ×œ× ×ž×¢×ª×™×§×™× ×”×›×œ"
+    - "P&P הוא Workspace, לא Storage"
+    - "עובדים רק מול ה-P&P (לא חיפוש חוזר בזיכרון)"
+    - "מזקקים מידע מהזיכרון לתוך P&P, לא מעתיקים הכל"
 
 naming_conventions:
   files: "lowercase_with_underscores.md"
-  system_files: "×ª×—×™×œ×™×ª _ (×œ×“×•×’×ž×”: _index.md)"
+  system_files: "תחילית _ (לדוגמה: _index.md)"
   sessions: "YYYY-MM-DD_task_name.md"
-  projects: "×©× ×”×¤×¨×•×™×§×˜ ×›×ª×™×§×™×™×” (×œ×“×•×’×ž×”: projects/agent-zero/)"
+  projects: "שם הפרויקט כתיקייה (לדוגמה: projects/agent-zero/)"
 
 structure_rules:
   page_layout:
     template: |
-      # ðŸŽ¯ Page Title
+      # 🎯 Page Title
       > One-line summary (CRITICAL - put most important info here!)
 
-      ## ðŸ“‹ Context & Status
+      ## 📋 Context & Status
       - Current state
       - Last action
 
-      ## ðŸ§  Main Content
+      ## 🧠 Main Content
       (Tables for data, Lists for tasks)
 
-      ## âš¡ Action Items
+      ## ⚡ Action Items
       1. [ ] Next step
       2. [ ] After that
 
-      ## ðŸ“ Notes
+      ## 📝 Notes
       * Additional context
 
   critical_rules:
@@ -51,8 +51,8 @@ structure_rules:
 
 formatting_guidelines:
   emojis:
-    good: "## ðŸ› ï¸ Tools (emoji + text)"
-    bad: "## ðŸ› ï¸ (emoji only)"
+    good: "## 🛠️ Tools (emoji + text)"
+    bad: "## 🛠️ (emoji only)"
     usage: "Use sparingly for visual scanning"
 
   data_formats:
@@ -78,11 +78,11 @@ lifecycle_management:
       - "New Task"
       - "Create: sessions/active/YYYY-MM-DD_task.md"
       - "Work: Update progress in session"
-      - "250 lines? â†’ WARNING: Clean up completed steps"
-      - "300 lines? â†’ MANDATORY: Archive completed, keep active only"
-      - "Task done? â†’ Success pattern? â†’ Propose Adaptation"
-      - "Task done? â†’ Move to: sessions/archive/"
-      - "After 90 days in archive â†’ Delete (with summary log)"
+      - "250 lines? → WARNING: Clean up completed steps"
+      - "300 lines? → MANDATORY: Archive completed, keep active only"
+      - "Task done? → Success pattern? → Propose Adaptation"
+      - "Task done? → Move to: sessions/archive/"
+      - "After 90 days in archive → Delete (with summary log)"
 
   persistent_tag:
     format: |
@@ -97,16 +97,16 @@ lifecycle_management:
 setup_protocol:
   steps:
     - "Open new session file: sessions/active/YYYY-MM-DD_task.md"
-    - "Pull from Memories: User preferences â†’ ## Constraints"
-    - "Pull from Projects: Current task â†’ # Objective"
-    - "Pull from Solutions: Existing recipe? â†’ ## Action Plan"
+    - "Pull from Memories: User preferences → ## Constraints"
+    - "Pull from Projects: Current task → # Objective"
+    - "Pull from Solutions: Existing recipe? → ## Action Plan"
 
 consolidation_protocol:
   steps:
-    - "Learned something new? â†’ Update Solution or create Adaptation"
-    - "Task complete? â†’ Update Project file, archive Session"
-    - "Critical page? â†’ Tag @persistent"
-    - "Pattern identified? â†’ Propose to Adaptations system"
+    - "Learned something new? → Update Solution or create Adaptation"
+    - "Task complete? → Update Project file, archive Session"
+    - "Critical page? → Tag @persistent"
+    - "Pattern identified? → Propose to Adaptations system"
 
 forbidden_actions:
   - "Don't copy entire documents from Memory - extract only relevant parts"
