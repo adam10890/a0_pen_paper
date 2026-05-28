@@ -4,5 +4,12 @@
   "retrieve_context_by_default": false,
   "context_loader_enabled": false,
   "context_loader_first_iteration_only": true,
-  "max_active_sessions_in_context": 5
+  "max_active_sessions_in_context": 5,
+  "llm_wiki_integration": {
+    "enabled": true,
+    "vault_path": "/data/SharedBrain",
+    "max_templates_per_list": 20,
+    "max_preview_chars": 500,
+    "max_full_load_chars": 3000
+  }
 }

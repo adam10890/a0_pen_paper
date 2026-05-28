@@ -1,4 +1,4 @@
-﻿"""
+"""
 Pen & Paper Tool
 ניהול מרחב עבודה זמני למשימות מורכבות - כמו פנקס וניירות עבודה
 
@@ -7,7 +7,18 @@ Location: usr/plugins/a0_pen_paper/tools/pen_paper.py
 
 import json
 import shutil
-import yaml
+try:
+    import yaml
+except Exception:
+    yaml = None
+
+try:
+    from ._wiki_helpers import _parse_yaml_minimal
+except Exception:
+    try:
+        from _wiki_helpers import _parse_yaml_minimal
+    except Exception:
+        _parse_yaml_minimal = None
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -43,7 +54,11 @@ class PenPaper(Tool):
         if Path(onboarding_path).exists():
             try:
                 content = files.read_file(onboarding_path)
-                return yaml.safe_load(content)
+                if yaml is not None:
+                    return yaml.safe_load(content) or {}
+                if _parse_yaml_minimal is not None:
+                    return _parse_yaml_minimal(content) or {}
+                return {}
             except Exception as e:
                 print(f"Failed to load onboarding config: {e}")
         return {}
@@ -160,7 +175,8 @@ class PenPaper(Tool):
         
         action = self.args.get("action", "list")
         name = self.args.get("name", "")
-        section = self.args.get("section", "notes")
+        # For read, omitted section means full workspace summary. For update, default to notes.
+        section = self.args.get("section", None if action == "read" else "notes")
         content = self.args.get("content", "")
         ephemeral = self.args.get("ephemeral", False)
         retrieve_context = self.args.get("retrieve_context", True)
@@ -231,7 +247,7 @@ class PenPaper(Tool):
                 self.args.get("phases", []),
                 self.args.get("triggers", []),
                 self.args.get("triggers_he", []),
-                self.args.get("content", "")
+                self.args.get("content", self.args.get("template_content", ""))
             )
 
         elif action == "edit_template":
@@ -457,7 +473,17 @@ class PenPaper(Tool):
         template_data = self._load_template_content(template_name)
         if not template_data:
             return Response(message=f"Template '{template_name}' not found.", break_loop=False)
-        return await self._create_workspace(workspace_name, retrieve_context=True, template=template_name)
+
+        template_body = template_data.get("content", "") or ""
+        for key, value in (variables or {}).items():
+            template_body = template_body.replace("{{" + str(key) + "}}", str(value))
+
+        return await self._create_workspace(
+            workspace_name,
+            retrieve_context=True,
+            template=template_name,
+            content=template_body,
+        )
 
     async def _create_workspace(self, name: str, retrieve_context: bool = True, template: str | None = None, content: str = "") -> Response:
         """Create a new workspace with optional context retrieval, template, and initial content"""
@@ -507,7 +533,7 @@ class PenPaper(Tool):
         if template:
             template_data = self._load_template_content(template)
             if template_data:
-                tmpl = template_data.get("template", {})
+                tmpl = template_data.get("template") if isinstance(template_data.get("template"), dict) else template_data
                 phases = tmpl.get("phases", [])
                 description = tmpl.get("description", "")
                 

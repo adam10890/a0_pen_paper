@@ -1,3 +1,8 @@
 # Internal dev tracker — never commit/share
 docs/dev-tracker.html
 
+__pycache__/
+*.pyc
+.toggle-*
+usr/pen_and_paper/
+execute_record.json
