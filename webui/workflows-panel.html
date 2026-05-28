@@ -24,6 +24,7 @@
         flex: 0 0 auto;
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: 0.5rem;
         padding: 0.65rem 0.9rem;
         border-bottom: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
@@ -37,6 +38,35 @@
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
+    }
+
+    .pnpwf-mode-toggle {
+        display: inline-flex;
+        border-radius: 0.35rem;
+        border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+        overflow: hidden;
+    }
+
+    .pnpwf-mode-btn {
+        font-size: 0.68rem;
+        padding: 0.28rem 0.55rem;
+        border: none;
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+    }
+
+    .pnpwf-mode-btn.is-active {
+        background: color-mix(in srgb, var(--color-highlight) 18%, transparent);
+        color: var(--color-text);
+    }
+
+    .pnpwf-stale-banner {
+        flex: 0 0 auto;
+        padding: 0.4rem 0.65rem;
+        font-size: 0.72rem;
+        background: color-mix(in srgb, #c90 18%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, #c90 35%, transparent);
     }
 
     .pnpwf-body {
@@ -90,6 +120,38 @@
         background: color-mix(in srgb, var(--color-highlight) 18%, transparent);
     }
 
+    .pnpwf-item.is-chat-current {
+        border-color: color-mix(in srgb, var(--color-highlight) 55%, transparent);
+    }
+
+    .pnpwf-item.is-chat-focus {
+        box-shadow: inset 2px 0 0 var(--color-highlight);
+    }
+
+    .pnpwf-badge {
+        display: inline-block;
+        font-size: 0.6rem;
+        padding: 0.1rem 0.35rem;
+        margin-left: 0.25rem;
+        border-radius: 0.25rem;
+        background: color-mix(in srgb, var(--color-highlight) 20%, transparent);
+        color: var(--color-text);
+        vertical-align: middle;
+    }
+
+    .pnpwf-badge.muted {
+        background: color-mix(in srgb, var(--color-border) 40%, transparent);
+        color: var(--color-text-muted);
+    }
+
+    .pnpwf-chat-bar {
+        flex: 0 0 auto;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.68rem;
+        color: var(--color-text-muted);
+        border-bottom: 1px solid color-mix(in srgb, var(--color-border) 35%, transparent);
+    }
+
     .pnpwf-main {
         display: flex;
         flex-direction: column;
@@ -104,6 +166,33 @@
         gap: 0.4rem;
         padding: 0.5rem 0.65rem;
         border-bottom: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+    }
+
+    .pnpwf-live-bar {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.65rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+    }
+
+    .pnpwf-live-bar label {
+        font-size: 0.68rem;
+        color: var(--color-text-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .pnpwf-live-bar select {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.4rem;
+        border-radius: 0.3rem;
+        border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+        background: var(--color-input-background, var(--color-background));
+        color: var(--color-text);
     }
 
     .pnpwf-meta label {
@@ -217,6 +306,8 @@
         justify-content: center;
         color: var(--color-text-muted);
         font-size: 0.8rem;
+        padding: 1rem;
+        text-align: center;
     }
 </style>
 
@@ -230,11 +321,38 @@
             <span class="material-symbols-outlined" style="font-size:1.1rem">edit_note</span>
             Workflows
         </h2>
+        <div class="pnpwf-mode-toggle">
+            <button
+                type="button"
+                class="pnpwf-mode-btn"
+                :class="{ 'is-active': $store.penPaperWorkflows?.mode === 'templates' }"
+                @click="$store.penPaperWorkflows.setMode('templates')"
+            >Templates</button>
+            <button
+                type="button"
+                class="pnpwf-mode-btn"
+                :class="{ 'is-active': $store.penPaperWorkflows?.mode === 'live' }"
+                @click="$store.penPaperWorkflows.setMode('live')"
+            >Live</button>
+        </div>
         <span class="pnpwf-hint" x-text="$store.penPaperWorkflows?.status"></span>
-        <span class="pnpwf-hint" style="margin-left:auto" x-show="$store.penPaperWorkflows?.dirty">●</span>
+        <span class="pnpwf-hint" style="margin-left:auto" x-show="$store.penPaperWorkflows?.mode === 'templates' && $store.penPaperWorkflows?.dirty">●</span>
     </header>
 
-    <div class="pnpwf-body" x-show="$store.penPaperWorkflows?.templates?.length">
+    <div
+        class="pnpwf-stale-banner"
+        x-show="$store.penPaperWorkflows?.mode === 'live' && $store.penPaperWorkflows?.sessionStale"
+        x-cloak
+    >
+        הסוכן עדכן את הסשן — רענן (טען מחדש) או הוסף את הטקסט שלך לפני שינוי נוסף.
+        <button type="button" class="pnpwf-btn" style="margin-left:0.5rem" @click="$store.penPaperWorkflows.loadSessionSection()">רענן</button>
+    </div>
+
+    <!-- Templates mode -->
+    <div
+        class="pnpwf-body"
+        x-show="$store.penPaperWorkflows?.mode === 'templates' && $store.penPaperWorkflows?.templates?.length"
+    >
         <aside class="pnpwf-sidebar">
             <div class="pnpwf-sidebar-actions">
                 <button class="pnpwf-btn primary" type="button" @click="$store.penPaperWorkflows.createNew()">+ חדש</button>
@@ -301,7 +419,127 @@
         </section>
     </div>
 
-    <div class="pnpwf-empty" x-show="!$store.penPaperWorkflows?.templates?.length && !$store.penPaperWorkflows?.loading">
+    <!-- Live session mode -->
+    <div
+        class="pnpwf-body"
+        x-show="$store.penPaperWorkflows?.mode === 'live' && ($store.penPaperWorkflows?.sessions?.length || $store.penPaperWorkflows?.sessionTotalCount > 0)"
+    >
+        <aside class="pnpwf-sidebar">
+            <div class="pnpwf-chat-bar" x-show="$store.penPaperWorkflows?.currentChatId">
+                <span>צ'אט: </span>
+                <span x-text="$store.penPaperWorkflows.currentChatId"></span>
+            </div>
+            <div class="pnpwf-sidebar-actions">
+                <button class="pnpwf-btn" type="button" @click="$store.penPaperWorkflows.refreshSessions()">↻</button>
+                <label class="pnpwf-hint" style="display:flex;align-items:center;gap:0.3rem">
+                    <input type="checkbox" x-model="$store.penPaperWorkflows.followAgent" />
+                    Follow agent
+                </label>
+                <label class="pnpwf-hint" style="display:flex;align-items:center;gap:0.3rem">
+                    <input
+                        type="checkbox"
+                        x-model="$store.penPaperWorkflows.liveChatOnly"
+                        @change="$store.penPaperWorkflows.refreshSessions()"
+                    />
+                    רק צ'אט זה
+                </label>
+            </div>
+            <div class="pnpwf-list">
+                <template x-for="s in $store.penPaperWorkflows.sessions" :key="s.name">
+                    <button
+                        type="button"
+                        class="pnpwf-item"
+                        :class="{
+                            'is-active': $store.penPaperWorkflows.selectedSession === s.name,
+                            'is-chat-current': s.is_current_chat,
+                            'is-chat-focus': s.is_chat_focus
+                        }"
+                        @click="$store.penPaperWorkflows.selectSession(s.name)"
+                    >
+                        <span x-text="s.name"></span>
+                        <span class="pnpwf-badge" x-show="s.is_current_chat">צ'אט זה</span>
+                        <span class="pnpwf-badge" x-show="s.is_chat_focus && !s.is_current_chat">פעיל</span>
+                        <span class="pnpwf-badge muted" x-show="!s.is_current_chat && s.is_orphan">ללא תג</span>
+                        <span class="pnpwf-hint" x-show="s.template" x-text="' · ' + s.template"></span>
+                    </button>
+                </template>
+            </div>
+        </aside>
+
+        <section class="pnpwf-main" x-show="$store.penPaperWorkflows.selectedSession">
+            <div class="pnpwf-live-bar">
+                <label>Section
+                    <select
+                        x-model="$store.penPaperWorkflows.selectedSection"
+                        @change="$store.penPaperWorkflows.loadSessionSection()"
+                    >
+                        <option value="findings">findings</option>
+                        <option value="results">results</option>
+                        <option value="insights">insights</option>
+                        <option value="notes">notes</option>
+                        <option value="decisions">decisions</option>
+                        <option value="backtrack">backtrack</option>
+                        <option value="execution_log">execution_log</option>
+                    </select>
+                </label>
+                <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.copySessionText()">העתק</button>
+                <button
+                    type="button"
+                    class="pnpwf-btn"
+                    x-show="$store.penPaperWorkflows.sessionMetadata?.template"
+                    @click="$store.penPaperWorkflows.openTemplateFromSession()"
+                >Open template</button>
+            </div>
+
+            <div class="pnpwf-tabs">
+                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'edit' }" @click="$store.penPaperWorkflows.tab = 'edit'">עריכה</button>
+                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'preview' }" @click="$store.penPaperWorkflows.tab = 'preview'">תצוגה</button>
+            </div>
+
+            <div class="pnpwf-editor-area">
+                <textarea
+                    x-show="$store.penPaperWorkflows.tab === 'edit'"
+                    x-model="$store.penPaperWorkflows.content"
+                    @input="$store.penPaperWorkflows.onSessionInput()"
+                    placeholder="Session section content (append on save)..."
+                ></textarea>
+                <div
+                    x-show="$store.penPaperWorkflows.tab === 'preview'"
+                    class="pnpwf-preview"
+                    x-html="$store.penPaperWorkflows.previewHtml"
+                ></div>
+            </div>
+
+            <footer class="pnpwf-footer">
+                <span class="pnpwf-hint" x-text="'usr/pen_and_paper/sessions/active/' + ($store.penPaperWorkflows.selectedSession || '')"></span>
+                <div style="display:flex;gap:0.35rem">
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.loadSessionSection()">רענן</button>
+                    <button
+                        type="button"
+                        class="pnpwf-btn primary"
+                        @click="$store.penPaperWorkflows.saveSessionNote()"
+                        :disabled="$store.penPaperWorkflows.saving || !$store.penPaperWorkflows.content?.trim()"
+                    >
+                        <span x-text="$store.penPaperWorkflows.saving ? 'מוסיף...' : 'הוסף לסשן'"></span>
+                    </button>
+                </div>
+            </footer>
+        </section>
+    </div>
+
+    <div
+        class="pnpwf-empty"
+        x-show="$store.penPaperWorkflows?.mode === 'templates' && !$store.penPaperWorkflows?.templates?.length && !$store.penPaperWorkflows?.loading"
+    >
         אין תבניות. הרץ execute.py install או צור תבנית חדשה.
+    </div>
+
+    <div
+        class="pnpwf-empty"
+        x-show="$store.penPaperWorkflows?.mode === 'live' && !$store.penPaperWorkflows?.sessions?.length && !$store.penPaperWorkflows?.loading"
+    >
+        <span x-show="!$store.penPaperWorkflows?.sessionTotalCount">אין סשנים פעילים. בקש מהסוכן ליצור workspace עם pen_paper.</span>
+        <span x-show="$store.penPaperWorkflows?.sessionTotalCount && $store.penPaperWorkflows?.liveChatOnly">אין סשנים לצ'אט הזה. בטל «רק צ'אט זה» לראות סשנים מצ'אטים אחרים.</span>
+        <span x-show="$store.penPaperWorkflows?.sessionTotalCount && !$store.penPaperWorkflows?.liveChatOnly">אין סשנים להצגה.</span>
     </div>
 </div>

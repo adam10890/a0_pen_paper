@@ -151,6 +151,23 @@ For every promoted workflow:
 | Post: required sections | schema | — | Wave 2+3 |
 | Post: registry↔MD sync | file exists | Partial | Wave 0 |
 | UI: dirty before switch | Alpine store | Canvas | Done |
+| UI: Live session append | etag match on `workspace.json` | Wave 4 | Done |
+
+---
+
+## 4.1 WD Live mode ↔ P&P sessions (Wave 4)
+
+| Mode | Data path | Write |
+|------|-----------|-------|
+| **Templates** | `knowledge/workflows/<name>.md` | `workflows_save` |
+| **Live** | `sessions/active/<name>/workspace.json` | `sessions_append` only (append entry) |
+
+- **Focus:** `usr/pen_and_paper/.ui/focus.json` updated after `pen_paper` tool calls; UI **Follow agent** reads `sessions_focus` scoped by `chat_id`.
+- **Chat scope:** `workspace.metadata.chat_id` set on create/update; Live list sends `chat_id` from open chat (`$store.chats.selectedContext.id`); badge **צ'אט זה** when `is_current_chat`.
+- **Conflict:** `sessions_append` requires `etag` from last `sessions_get`; mismatch returns `error: stale`.
+- **UI entries:** `{ "source": "ui", "author": "user", "content": "...", "timestamp": "ISO8601" }`.
+
+See [`LIVE_SESSION_VIEW_SPEC.md`](LIVE_SESSION_VIEW_SPEC.md).
 
 ---
 
@@ -181,7 +198,8 @@ flowchart LR
 | Automatic hooks | No (broken metadata) | Wave 0+3 |
 | config → tool | No | Wave 1 |
 | JSON Schema for templates | No | Wave 2 |
-| Orchestrator | No | Wave 3 |
+| Orchestrator | Yes (MVP) | Wave 3 |
+| Live session mirror in Canvas | Yes | Wave 4 |
 | Cross-model SKILL | Partial | promotion + porting |
 
 ---

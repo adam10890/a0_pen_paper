@@ -1,6 +1,10 @@
 from pathlib import Path
+import importlib
+import importlib.metadata
 import json
 import shutil
+import subprocess
+import sys
 
 try:
     from helpers import files
@@ -13,6 +17,52 @@ except ImportError:
 
 PLUGIN_NAME = "a0_pen_paper"
 RUNTIME_BASE = "usr/pen_and_paper"
+_REQUIREMENTS = Path(__file__).resolve().parent / "requirements.txt"
+
+
+def _parse_requirements(path: Path) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
+    if not path.is_file():
+        return out
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        for sep in (">=", "==", "~=", "<=", "<", ">"):
+            if sep in line:
+                name = line.split(sep, 1)[0].strip()
+                break
+        else:
+            name = line
+        out.append((name, line))
+    return out
+
+
+def _missing_requirements(reqs: list[tuple[str, str]]) -> list[str]:
+    missing: list[str] = []
+    for dist_name, spec in reqs:
+        try:
+            importlib.metadata.version(dist_name)
+        except importlib.metadata.PackageNotFoundError:
+            missing.append(spec)
+    return missing
+
+
+def _ensure_python_deps() -> None:
+    reqs = _parse_requirements(_REQUIREMENTS)
+    if not reqs:
+        return
+    missing = _missing_requirements(reqs)
+    if not missing:
+        return
+    print(f"{PLUGIN_NAME}: installing missing deps: {missing}")
+    cmd = [sys.executable, "-m", "pip", "install", *missing]
+    try:
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=180)
+        if result.returncode != 0:
+            print(f"{PLUGIN_NAME}: pip install warning: {result.stderr[:300]}")
+    except subprocess.TimeoutExpired:
+        print(f"{PLUGIN_NAME}: pip install timed out")
 
 
 def _copy_missing(src: Path, dst: Path) -> None:
@@ -23,6 +73,7 @@ def _copy_missing(src: Path, dst: Path) -> None:
 
 
 def install(**kwargs):
+    _ensure_python_deps()
     plugin_dir = Path(__file__).resolve().parent
     runtime_dir = Path(files.get_abs_path(RUNTIME_BASE))
     wf_dir = runtime_dir / "knowledge" / "workflows"
@@ -35,6 +86,7 @@ def install(**kwargs):
         "knowledge/workflows",
         "vectors",
         "_archived/templates",
+        ".ui",
     ]:
         (runtime_dir / rel).mkdir(parents=True, exist_ok=True)
 

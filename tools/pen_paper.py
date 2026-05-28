@@ -308,6 +308,22 @@ class PenPaper(Tool):
         """Get path to workspace.json file"""
         return str(Path(self._get_workspace_dir(name)) / "workspace.json")
 
+    def _current_chat_id(self) -> str | None:
+        """Agent Zero context id for the open chat (used by Live Session UI)."""
+        agent = getattr(self, "agent", None)
+        ctx = getattr(agent, "context", None) if agent else None
+        cid = getattr(ctx, "id", None) if ctx else None
+        return str(cid) if cid else None
+
+    def _ensure_workspace_chat_id(self, workspace: dict) -> None:
+        """Tag workspace with chat_id when created/updated from an agent context."""
+        cid = self._current_chat_id()
+        if not cid:
+            return
+        meta = workspace.setdefault("metadata", {})
+        if not meta.get("chat_id"):
+            meta["chat_id"] = cid
+
     # Template registry path (dynamic loading)
     TEMPLATE_REGISTRY_PATH = "usr/pen_and_paper/knowledge/workflows/template_registry.json"
 
@@ -523,6 +539,7 @@ class PenPaper(Tool):
                 "created_at": datetime.now().isoformat(),
                 "status": "active",
                 "agent": self.agent.agent_name,
+                "chat_id": self._current_chat_id(),
                 "ephemeral": False,  # Default to persistent
                 "template": template  # Track which template was used
             },
@@ -700,19 +717,20 @@ class PenPaper(Tool):
 
         response_msg += f"**Path:** `{workspace_dir}`\n\n"
 
-        response_msg += f"**Available sections:**\n"
-
-        response_msg += f"- `findings` - Discovered facts and observations\n"
-
-        response_msg += f"- `results` - Completed outcomes and outputs\n"
-
-        response_msg += f"- `insights` - Learned lessons and realizations\n"
-
-        response_msg += f"- `notes` - General notes and thoughts\n"
-
-        response_msg += f"- `decisions` - Key decisions made\n"
-
-        response_msg += f"- `backtrack` - Items to revisit or reconsider\n\n"
+        section_hints = {
+            "findings": "Discovered facts and observations",
+            "results": "Completed outcomes and outputs",
+            "insights": "Learned lessons and realizations",
+            "notes": "General notes and thoughts",
+            "decisions": "Key decisions made",
+            "backtrack": "Items to revisit or reconsider",
+            "execution_log": "Workflow step status (pending/running/done/failed/skipped)",
+        }
+        response_msg += "**Available sections:**\n"
+        for sec in self.VALID_SECTIONS:
+            hint = section_hints.get(sec, "")
+            response_msg += f"- `{sec}`" + (f" - {hint}" if hint else "") + "\n"
+        response_msg += "\n"
 
         response_msg += f"**Ephemeral:** {workspace['metadata']['ephemeral']}\n\n"
 
@@ -801,14 +819,13 @@ class PenPaper(Tool):
 
             # Add entry
             workspace[section].append(entry)
-            
+
+            self._ensure_workspace_chat_id(workspace)
 
             # Save
             files.write_file(workspace_file, json.dumps(workspace, indent=2))
-            
 
             count = len(workspace[section])
-            
 
             return Response(
                 message=f"✏️ Updated **{section}** in '{name}'\n\n"

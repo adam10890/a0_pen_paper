@@ -1,6 +1,6 @@
 # Implementation Status (post Agent Zero responses)
 
-**Date:** 2026-05-27  
+**Date:** 2026-05-28  
 **Based on:** [`AGENT_ZERO_RESPONSES.md`](AGENT_ZERO_RESPONSES.md)
 
 ## Completed
@@ -35,11 +35,34 @@
 - [x] Extension `tool_execute_before/_50_pen_paper_workflow_guard.py` — registry warnings
 - [x] `execute.py validate` — registry integrity check
 
+### Wave 4 — Live Session (Canvas)
+- [x] `helpers/sessions_store.py` — list/get/append/focus + etag
+- [x] API: `sessions_list`, `sessions_get`, `sessions_focus`, `sessions_set_focus`, `sessions_append`
+- [x] Extension `tool_execute_after/_51_pen_paper_focus.py`
+- [x] Workflows Canvas: **Templates | Live** modes in `workflows-store.js` + `workflows-panel.html`
+- [x] `requirements.txt` + `hooks.py` pip install for PyYAML
+- [x] `execute.py validate` — yaml fallback when PyYAML missing
+- [x] Create workspace message lists all `VALID_SECTIONS` including `execution_log`
+
+## Verification (2026-05-28 — Agent Zero)
+
+| Tier | Result | Notes |
+|------|--------|-------|
+| A | 8/8 PASS | `verify_pen_paper_setup.py` |
+| B | 5/6 | B2 failed pre-fix (`yaml` missing); fixed via `requirements.txt` + hooks |
+| C | 12/12 PASS | Full tool smoke in Docker `/a0` |
+| D | Manual | Canvas UI |
+| G | Manual | Live Session after deploy |
+
+Artifact: `usr/workdir/pen_paper_phase1_artifacts/tier_ab_verification_20260528_210856.log`
+
 ## Deferred / manual
 
 - [ ] Cross-model UAT matrix (`UAT_CROSS_MODEL.md`)
 - [ ] `a0_skill_creator` eval run (after 2 successful workflow runs)
-- [ ] Canvas etag / stale-save rejection (Wave 1 optional)
+- [x] Live session etag on UI append (Wave 4c)
+- [ ] Template Canvas etag / stale-save rejection (Wave 1 optional)
+- [ ] Live Session WebSocket push (Wave 4d)
 - [ ] Full JSON Schema file + strict validator (basic integrity only today)
 - [ ] `pen_paper_vectorizer` — implement or remove imports (still silent fail)
 - [ ] `context_loader` — no implementation

@@ -45,6 +45,7 @@ def create_runtime_structure():
         "knowledge/workflows",
         "vectors",
         "_archived/templates",
+        ".ui",
     ]:
         (runtime_dir / rel).mkdir(parents=True, exist_ok=True)
     
@@ -137,7 +138,7 @@ def run_status():
         print("\nFiles and directories:")
         for c in checks:
             p = runtime_dir / c
-            status = "✓" if p.exists() else "✗"
+            status = "OK" if p.exists() else "MISS"
             kind = "dir" if p.is_dir() else "file"
             print(f"  {status} {c} ({kind})")
     
@@ -159,17 +160,39 @@ def run_validate():
     all_valid = True
     for name, path in checks:
         if path.exists():
-            print(f"  ✓ {name}")
+            print(f"  OK {name}")
         else:
-            print(f"  ✗ {name} MISSING")
+            print(f"  FAIL {name} MISSING")
             all_valid = False
     
     # Check plugin.yaml content
     plugin_yaml = plugin_dir / "plugin.yaml"
     if plugin_yaml.exists():
-        import yaml
-        with open(plugin_yaml, 'r') as f:
-            config = yaml.safe_load(f)
+        import re
+
+        config = None
+        try:
+            import yaml
+
+            with open(plugin_yaml, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+        except ImportError:
+            print("\n  WARN PyYAML not installed — plugin.yaml parsed with regex fallback")
+            print("    Reinstall plugin or: pip install pyyaml>=6.0")
+            text = plugin_yaml.read_text(encoding="utf-8")
+            config = {}
+            for key in ("name", "version", "always_enabled"):
+                m = re.search(rf"^{key}:\s*(.+)$", text, re.MULTILINE)
+                if m:
+                    val = m.group(1).strip().strip('"').strip("'")
+                    if key == "always_enabled":
+                        config[key] = val.lower() in ("true", "yes", "1")
+                    else:
+                        config[key] = val
+        except Exception as e:
+            print(f"\n  WARN plugin.yaml parse error: {e}")
+            config = {}
+        if config:
             print(f"\nPlugin configuration:")
             print(f"  name: {config.get('name', 'N/A')}")
             print(f"  version: {config.get('version', 'N/A')}")
@@ -183,12 +206,12 @@ def run_validate():
         if integrity:
             print("\nRegistry integrity issues:")
             for err in integrity:
-                print(f"  ✗ {err}")
+                print(f"  FAIL {err}")
             all_valid = False
         else:
-            print("\n  ✓ template_registry integrity")
+            print("\n  OK template_registry integrity")
     except Exception as e:
-        print(f"\n  ⚠ registry integrity check skipped: {e}")
+        print(f"\n  WARN registry integrity check skipped: {e}")
 
     return 0 if all_valid else 1
 
