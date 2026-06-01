@@ -12,6 +12,8 @@ DEFAULTS: dict[str, Any] = {
     "features": {
         "retrieve_context_on_create": False,
         "vectorize_on_close": False,
+        "context_loader_enabled": False,
+        "context_loader_first_iteration_only": True,
     },
     "llm_wiki_integration": {
         "enabled": False,
@@ -36,6 +38,27 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+def _normalize_legacy(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Map legacy flat keys into features.* (Wave 1)."""
+    out = dict(cfg)
+    features = dict(out.get("features") or {})
+    if "vectorize_by_default" in out:
+        features["vectorize_on_close"] = out.pop("vectorize_by_default")
+    if "retrieve_context_by_default" in out:
+        features["retrieve_context_on_create"] = out.pop("retrieve_context_by_default")
+    if "context_loader_enabled" in out and "context_loader_enabled" not in features:
+        features["context_loader_enabled"] = out.pop("context_loader_enabled")
+    if "context_loader_first_iteration_only" in out and "context_loader_first_iteration_only" not in features:
+        features["context_loader_first_iteration_only"] = out.pop(
+            "context_loader_first_iteration_only"
+        )
+    if "max_active_sessions_in_context" in out and "session" not in out:
+        out["session"] = {"max_active_sessions_in_context": out.pop("max_active_sessions_in_context")}
+    if features:
+        out["features"] = features
+    return out
+
+
 def load_plugin_config(agent=None) -> dict[str, Any]:
     """Load plugin config with safe defaults outside Agent Zero runtime."""
     cfg: dict[str, Any] = {}
@@ -45,6 +68,7 @@ def load_plugin_config(agent=None) -> dict[str, Any]:
         cfg = get_plugin_config(PLUGIN_NAME, agent=agent) or {}
     except Exception:
         pass
+    cfg = _normalize_legacy(cfg)
     return _deep_merge(DEFAULTS, cfg)
 
 

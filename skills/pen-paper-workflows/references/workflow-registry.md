@@ -47,7 +47,7 @@ Optional sub-flow hints (not separate files required):
 |---------|-----------|
 | Agent | `pen_paper` `create_template` / `edit_template` / `delete_template` |
 | Human | Canvas **Workflows** panel or direct file edit (prefer Save via UI for registry sync) |
-| API | `POST /api/plugins/a0_pen_paper/workflows_*` |
+| API | `POST /plugins/a0_pen_paper/workflows_*` |
 
 Always keep **registry entry** and **`.md` file** in sync. The tool and API do both on save.
 

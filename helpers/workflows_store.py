@@ -56,6 +56,26 @@ def validate_name(name: str) -> str | None:
     return None
 
 
+def validate_registry_integrity(cfg: dict[str, Any] | None = None) -> list[str]:
+    """Return list of integrity errors (empty if OK)."""
+    errors: list[str] = []
+    reg = _read_registry(cfg)
+    wf_dir = workflows_dir(cfg)
+    templates = reg.get("templates") or {}
+    for name, meta in templates.items():
+        wf_file = meta.get("file", f"{name}.md")
+        if not (wf_dir / wf_file).exists():
+            errors.append(f"Template '{name}': missing file {wf_file}")
+    hooks = (reg.get("base_workflows") or {}).get("hooks") or {}
+    for hook, target in hooks.items():
+        if target not in templates:
+            errors.append(f"Hook '{hook}' points to missing template '{target}'")
+    for entry in (reg.get("base_workflows") or {}).get("list") or []:
+        if entry not in templates:
+            errors.append(f"base_workflows.list entry '{entry}' not in templates")
+    return errors
+
+
 def list_templates(cfg: dict[str, Any] | None = None) -> dict:
     reg = _read_registry(cfg)
     items = []
@@ -63,6 +83,7 @@ def list_templates(cfg: dict[str, Any] | None = None) -> dict:
         items.append({
             "name": name,
             "file": meta.get("file", f"{name}.md"),
+            "version": meta.get("version", "1.0.0"),
             "description": meta.get("description", ""),
             "description_he": meta.get("description_he", ""),
             "phases": meta.get("phases", []),
@@ -93,6 +114,7 @@ def get_template(name: str, cfg: dict[str, Any] | None = None) -> dict | None:
     return {
         "name": name,
         "file": wf_file,
+        "version": meta.get("version", "1.0.0"),
         "description": meta.get("description", ""),
         "description_he": meta.get("description_he", ""),
         "phases": meta.get("phases", []),
@@ -117,7 +139,7 @@ def save_template(
         return {"ok": False, "error": f"Template '{name}' not found"}
     meta = dict(templates[name])
     md = metadata or {}
-    for field in ("description", "description_he", "phases", "triggers"):
+    for field in ("description", "description_he", "phases", "triggers", "version"):
         if field in md:
             meta[field] = md[field]
     wf_file = meta.get("file", f"{name}.md")
@@ -127,6 +149,9 @@ def save_template(
     templates[name] = meta
     reg["templates"] = templates
     _write_registry(reg, cfg)
+    integrity = validate_registry_integrity(cfg)
+    if integrity:
+        return {"ok": True, "name": name, "file": wf_file, "warnings": integrity}
     return {"ok": True, "name": name, "file": wf_file}
 
 
@@ -162,6 +187,7 @@ def create_template(
     (wf_dir / wf_file).write_text(body, encoding="utf-8")
     templates[name] = {
         "file": wf_file,
+        "version": "1.0.0",
         "description": description,
         "description_he": description_he,
         "phases": phases,
@@ -169,6 +195,9 @@ def create_template(
     }
     reg["templates"] = templates
     _write_registry(reg, cfg)
+    integrity = validate_registry_integrity(cfg)
+    if integrity:
+        return {"ok": False, "error": "; ".join(integrity)}
     return {"ok": True, "name": name, "file": wf_file}
 
 

@@ -8,7 +8,7 @@ Pen & Paper sessions map directly to workspaces, which are managed via the `pen_
 
 Initiate a new workspace at the start of any complex task. Pick a descriptive name representing the task.
 
-### 2. Interaction (`action: "write"`, `action: "read"`)
+### 2. Interaction (`action: "update"`, `action: "read"`)
 
 Throughout the task, incrementally add information to the appropriate sections:
 
