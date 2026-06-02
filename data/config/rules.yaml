@@ -157,13 +157,14 @@ ownership_matrix:
 execution_contract:
   description: "Rules governing workflow step execution and state commit"
   rules:
-    - "A step is COMPLETE only after both workflow session state AND pen_paper execution_log are updated"
-    - "Never re-run a step whose status is COMPLETED or FAILED in session state"
-    - "Terminal output alone is NOT a completion signal â€” state commit must follow"
-    - "Step status must be checked against WorkflowStepStatus enum values, not raw strings"
+    - "A step is done only after both workspace updates and pen_paper execution_log are updated"
+    - "Never re-run a step whose status is done or failed in execution_log"
+    - "Terminal output alone is NOT a completion signal — state commit must follow"
+    - "Step status must use WorkflowStepStatus values: pending, running, done, failed, skipped"
     - "Each step has a unique step_id that survives serialization; use it for idempotency checks"
-  enforcement: "code â€” SmartRouterExtension._execute_workflow_steps"
+  enforcement: "code — pen_paper.py + helpers/workflow_executor.py"
   added_at: "2026-03-06"
+  updated_at: "2026-05-27"
 
 references:
   - "Scale AI: Lost in the Middle research"

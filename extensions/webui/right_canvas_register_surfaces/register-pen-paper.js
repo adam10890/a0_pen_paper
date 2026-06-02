@@ -29,7 +29,7 @@ export default async function registerPenPaperWorkflowsSurface(canvas) {
     async open(payload = {}) {
       const panel = await waitForElement('[data-surface-id="pen_paper_workflows"] .pnpwf-panel');
       if (panel && penPaperStore?.onOpen) {
-        await penPaperStore.onOpen(panel, { mode: "canvas", ...payload });
+        await penPaperStore.onOpen(panel, { ...payload });
       } else if (penPaperStore?.init) {
         await penPaperStore.init();
       }

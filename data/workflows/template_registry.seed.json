@@ -1,0 +1,65 @@
+{
+  "templates": {
+    "session": {
+      "file": "session.md",
+      "version": "1.0.0",
+      "description": "General structured working session",
+      "description_he": "סשן עבודה מובנה כללי",
+      "phases": ["Plan", "Work", "Review"],
+      "triggers": ["session", "notes", "planning", "task", "סשן", "תכנון"]
+    },
+    "workflow_to_skill": {
+      "file": "workflow_to_skill.md",
+      "version": "1.0.0",
+      "description": "Convert a Pen & Paper workflow into a reusable Agent Zero SKILL.md",
+      "description_he": "המרת זרימת עבודה של Pen & Paper ל-SKILL.md שימושי",
+      "phases": [
+        "Capture workflow intent",
+        "Extract reusable procedure",
+        "Write SKILL.md contract",
+        "Validate trigger and live use"
+      ],
+      "triggers": [
+        "skill workflow",
+        "build skill",
+        "workflow to skill",
+        "SKILL.md",
+        "יכולת",
+        "זרימת עבודה"
+      ]
+    },
+    "research": {
+      "file": "research.md",
+      "version": "1.0.0",
+      "description": "Structured research: gather, synthesize, report",
+      "description_he": "מחקר מובנה",
+      "phases": ["Gather", "Synthesize", "Report"],
+      "triggers": ["research", "investigate", "explore", "מחקר"]
+    },
+    "debugging": {
+      "file": "debugging.md",
+      "version": "1.0.0",
+      "description": "Debug flow: reproduce, isolate, fix, verify",
+      "description_he": "תהליך דיבוג",
+      "phases": ["Reproduce", "Isolate", "Fix", "Verify"],
+      "triggers": ["debug", "bug", "error", "stuck", "דיבוג", "תקלה"]
+    },
+    "validation": {
+      "file": "validation.md",
+      "version": "1.0.0",
+      "description": "Validation: criteria, checks, sign-off",
+      "description_he": "אימות וסגירה",
+      "phases": ["Define criteria", "Run checks", "Sign-off"],
+      "triggers": ["validate", "verify", "test", "אימות"]
+    }
+  },
+  "base_workflows": {
+    "list": ["research", "debugging", "validation"],
+    "hooks": {
+      "on_unknown": "research",
+      "on_stuck": "debugging",
+      "on_error": "debugging",
+      "on_complete": "validation"
+    }
+  }
+}

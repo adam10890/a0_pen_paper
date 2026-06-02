@@ -1,10 +1,14 @@
 {
   "runtime_dir": "usr/pen_and_paper",
-  "vectorize_by_default": false,
-  "retrieve_context_by_default": false,
-  "context_loader_enabled": false,
-  "context_loader_first_iteration_only": true,
-  "max_active_sessions_in_context": 5,
+  "features": {
+    "retrieve_context_on_create": false,
+    "vectorize_on_close": false,
+    "context_loader_enabled": false,
+    "context_loader_first_iteration_only": true
+  },
+  "session": {
+    "max_active_sessions_in_context": 5
+  },
   "llm_wiki_integration": {
     "enabled": true,
     "vault_path": "/data/SharedBrain",

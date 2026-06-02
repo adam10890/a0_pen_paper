@@ -48,6 +48,7 @@ Never duplicate the same fact in both.
 
 ## How it works (after you have read `_start_here.md`)
 
+0. **Load skills first**: run `skills_tool:load` for `pen-and-paper` or `pen-and-paper-workflow` before opening a session (BMAD-style).
 1. **Open a workspace**: `pen_paper` with `action: create`.
 2. **Log findings**: record intermediate insights logically.
 3. **Decisions**: explicitly document *why* you chose a path.
@@ -60,5 +61,4 @@ Never duplicate the same fact in both.
 - [`_index.md`](../../data/templates/_index.md) — catalog of all pages
 - [Philosophy & Core Principles](references/philosophy.md)
 - [Session Management](references/session-management.md)
-- [Vectorizer Details](references/vectorizer.md)
-- [Plugin Packaging](references/plugin-packaging.md)
+- [Pen & Paper Workflow (deterministic)](../../pen-and-paper-workflow/SKILL.md)

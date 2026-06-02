@@ -130,7 +130,7 @@ Markdown body variables: `{{SERVICE}}` are substituted in `use_template`.
 3. The agent sees file changes immediately; the panel auto-reloads when the agent saved and you have no unsaved local draft
 
 WebUI API (not required for the agent):  
-`/api/plugins/a0_pen_paper/workflows_list|workflows_get|workflows_save|workflows_create|workflows_delete`
+`/plugins/a0_pen_paper/workflows_list|workflows_get|workflows_save|workflows_create|workflows_delete`
 
 ## Recommended Agent Flow
 
