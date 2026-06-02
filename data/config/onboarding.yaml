@@ -1,4 +1,4 @@
-﻿# Pen & Paper Onboarding System
+# Pen & Paper Onboarding System
 # Phase 11.3: Automated Onboarding
 # Provides automatic instruction manual for new agents
 
@@ -29,15 +29,15 @@ core_rules:
 file_structure:
   overview: |
     usr/pen_and_paper/
-    â”œâ”€â”€ config/
-    â”‚   â”œâ”€â”€ rules.yaml          # System rules (this file)
-    â”‚   â”œâ”€â”€ templates_index.yaml # Available templates
-    â”‚   â””â”€â”€ onboarding.yaml      # This onboarding guide
-    â”œâ”€â”€ templates/               # Template files
-    â”‚   â”œâ”€â”€ agent.md            # Agent profile template
-    â”‚   â””â”€â”€ session.md          # Session template
-    â”œâ”€â”€ sessions/                # Active work sessions
-    â””â”€â”€ vectors/                 # Vectorized content for search
+    ├── config/
+    │   ├── rules.yaml          # System rules (this file)
+    │   ├── templates_index.yaml # Available templates
+    │   └── onboarding.yaml      # This onboarding guide
+    ├── templates/               # Template files
+    │   ├── agent.md            # Agent profile template
+    │   └── session.md          # Session template
+    ├── sessions/                # Active work sessions
+    └── vectors/                 # Vectorized content for search
 
   naming_conventions:
     files: "lowercase_with_underscores.md"
@@ -48,56 +48,56 @@ file_structure:
 # Session lifecycle
 session_lifecycle:
   stages:
-    - "New Task â†’ Create: sessions/YYYY-MM-DD_task.md"
-    - "Work â†’ Update progress in session"
-    - "250 lines? â†’ WARNING: Clean up completed steps"
-    - "300 lines? â†’ MANDATORY: Archive completed, keep active only"
-    - "Task done? â†’ Success pattern? â†’ Propose Adaptation"
-    - "Task done? â†’ Move to: sessions/archive/"
-    - "After 90 days in archive â†’ Delete (with summary log)"
+    - "New Task → Create: sessions/YYYY-MM-DD_task.md"
+    - "Work → Update progress in session"
+    - "250 lines? → WARNING: Clean up completed steps"
+    - "300 lines? → MANDATORY: Archive completed, keep active only"
+    - "Task done? → Success pattern? → Propose Adaptation"
+    - "Task done? → Move to: sessions/archive/"
+    - "After 90 days in archive → Delete (with summary log)"
 
   setup_protocol:
     - "Open new session file: sessions/YYYY-MM-DD_task.md"
-    - "Pull from Memories: User preferences â†’ ## Constraints"
-    - "Pull from Projects: Current task â†’ # Objective"
-    - "Pull from Solutions: Existing recipe? â†’ ## Action Plan"
+    - "Pull from Memories: User preferences → ## Constraints"
+    - "Pull from Projects: Current task → # Objective"
+    - "Pull from Solutions: Existing recipe? → ## Action Plan"
 
   consolidation_protocol:
-    - "Learned something new? â†’ Update Solution or create Adaptation"
-    - "Task complete? â†’ Update Project file, archive Session"
-    - "Critical page? â†’ Tag @persistent"
-    - "Pattern identified? â†’ Propose to Adaptations system"
+    - "Learned something new? → Update Solution or create Adaptation"
+    - "Task complete? → Update Project file, archive Session"
+    - "Critical page? → Tag @persistent"
+    - "Pattern identified? → Propose to Adaptations system"
 
 # Formatting guidelines
 formatting:
   page_layout: |
-    # ðŸŽ¯ Page Title
+    # 🎯 Page Title
     > One-line summary (CRITICAL - put most important info here!)
 
-    ## ðŸ“‹ Context & Status
+    ## 📋 Context & Status
     - Current state
     - Last action
 
-    ## ðŸ§  Main Content
+    ## 🧠 Main Content
     (Tables for data, Lists for tasks)
 
-    ## âš¡ Action Items
+    ## ⚡ Action Items
     1. [ ] Next step
     2. [ ] After that
 
-    ## ðŸ“ Notes
+    ## 📝 Notes
     * Additional context
 
   data_formats:
-    - "Comparisons, structured data â†’ Markdown Table"
-    - "Processes with order â†’ Numbered List"
-    - "Features without order â†’ Bullet Points"
-    - "Code snippets â†’ Fenced code blocks with language"
-    - "Actionable items â†’ Checkboxes [ ]"
+    - "Comparisons, structured data → Markdown Table"
+    - "Processes with order → Numbered List"
+    - "Features without order → Bullet Points"
+    - "Code snippets → Fenced code blocks with language"
+    - "Actionable items → Checkboxes [ ]"
 
   emojis:
-    good: "## ðŸ› ï¸ Tools (emoji + text)"
-    bad: "## ðŸ› ï¸ (emoji only)"
+    good: "## 🛠️ Tools (emoji + text)"
+    bad: "## 🛠️ (emoji only)"
     usage: "Use sparingly for visual scanning"
 
 # Template system
@@ -114,13 +114,13 @@ templates:
       file: "templates/session.md"
 
   selection_guide:
-    - "Creating agent profiles â†’ Use agent.md template"
-    - "Starting new tasks â†’ Use session.md template"
-    - "Following system structure â†’ Refer to page_layout in rules"
+    - "Creating agent profiles → Use agent.md template"
+    - "Starting new tasks → Use session.md template"
+    - "Following system structure → Refer to page_layout in rules"
 
 # Integration points
 integration:
-  with_memory: "Extract relevant info from memory â†’ distill into P&P"
+  with_memory: "Extract relevant info from memory → distill into P&P"
   with_projects: "Update project files when tasks complete"
   with_adaptations: "Propose patterns for the Adaptations system"
   with_workflows: "Use workflow templates for complex tasks"
@@ -128,10 +128,10 @@ integration:
 # Error handling
 error_handling:
   common_issues:
-    - "Document too long â†’ Split or archive completed sections"
-    - "Lost critical info â†’ Check if buried in middle of document"
-    - "Repeated memory searches â†’ Work from P&P only"
-    - "Inconsistent formatting â†’ Follow formatting guidelines"
+    - "Document too long → Split or archive completed sections"
+    - "Lost critical info → Check if buried in middle of document"
+    - "Repeated memory searches → Work from P&P only"
+    - "Inconsistent formatting → Follow formatting guidelines"
 
   recovery_actions:
     - "Split large documents at 300 lines"

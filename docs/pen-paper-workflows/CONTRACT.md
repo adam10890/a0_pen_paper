@@ -226,3 +226,43 @@ Artifacts: `usr/workdir/pen_paper_phase1_artifacts/` (Agent Zero run).
 - Baseline: [`ENV_BASELINE.md`](ENV_BASELINE.md)
 - Waves: `WAVE0_SPEC.md` … `WAVE3_SPEC.md`
 - Porting: [`CURSOR_CLAUDE_PORTING.md`](CURSOR_CLAUDE_PORTING.md)
+
+---
+
+## 9. Plugin config schema (canonical)
+
+`config.json` and `default_config.yaml` use the **nested** schema below. This is
+the single canonical shape — do **not** reintroduce the old flat keys. Old flat
+installs are migrated transparently by `tools/_config.py::_normalize_legacy()`.
+
+```json
+{
+  "runtime_dir": "usr/pen_and_paper",
+  "features": {
+    "retrieve_context_on_create": false,
+    "vectorize_on_close": false,
+    "context_loader_enabled": false,
+    "context_loader_first_iteration_only": true
+  },
+  "session": {
+    "max_active_sessions_in_context": 5
+  },
+  "llm_wiki_integration": {
+    "enabled": true,
+    "vault_path": "/data/SharedBrain",
+    "max_templates_per_list": 20,
+    "max_preview_chars": 500,
+    "max_full_load_chars": 3000
+  }
+}
+```
+
+Legacy → canonical key mapping (handled at load time):
+
+| Legacy flat key | Canonical nested key |
+|---|---|
+| `vectorize_by_default` | `features.vectorize_on_close` |
+| `retrieve_context_by_default` | `features.retrieve_context_on_create` |
+| `context_loader_enabled` | `features.context_loader_enabled` |
+| `context_loader_first_iteration_only` | `features.context_loader_first_iteration_only` |
+| `max_active_sessions_in_context` | `session.max_active_sessions_in_context` |
