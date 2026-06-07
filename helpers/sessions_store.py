@@ -238,6 +238,41 @@ def write_focus(
     return payload
 
 
+def ensure_session(
+    name: str,
+    chat_id: str | None = None,
+    *,
+    template: str | None = None,
+    cfg: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create an active workspace if it does not exist. Idempotent.
+
+    Used by background writers (e.g. the a0_scribe super-ego) that need a
+    session to append to without going through the pen_paper tool. Returns
+    {"ok": True, "created": <bool>, "name": <safe name>}.
+    """
+    safe = _safe_workspace_name(name)
+    wf = _workspace_file(safe, cfg)
+    if wf.exists():
+        return {"ok": True, "created": False, "name": safe}
+    wf.parent.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    workspace: dict[str, Any] = {
+        "metadata": {
+            "name": safe,
+            "status": "active",
+            "template": template,
+            "chat_id": chat_id,
+            "created_at": now,
+            "created_by": "scribe",
+        },
+    }
+    for sec in VALID_SECTIONS:
+        workspace[sec] = []
+    wf.write_text(json.dumps(workspace, indent=2), encoding="utf-8")
+    return {"ok": True, "created": True, "name": safe}
+
+
 def append_section(
     name: str,
     section: str,
@@ -245,6 +280,7 @@ def append_section(
     etag: str,
     *,
     author: str = "user",
+    source: str = "ui",
     cfg: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if section not in VALID_SECTIONS:
@@ -268,7 +304,7 @@ def append_section(
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "content": content,
-        "source": "ui",
+        "source": source,
         "author": author,
     }
     workspace[section].append(entry)
