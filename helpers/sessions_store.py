@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from usr.plugins.a0_pen_paper.tools._config import load_plugin_config, runtime_base
 
 VALID_SECTIONS = [
@@ -24,6 +26,25 @@ VALID_SECTIONS = [
 ]
 
 _NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+DEFAULT_SESSION_STATE: dict[str, Any] = {
+    "session": {
+        "goal": "",
+        "status": "active",
+        "updated_by": "scribe",
+        "last_event_id": None,
+    },
+    "working_set": {
+        "current_focus": "",
+        "next_action": "",
+        "open_questions": [],
+    },
+    "active_workflows": [],
+    "tags": {
+        "domains": [],
+        "modes": [],
+    },
+}
 
 
 def _abs_runtime(cfg: dict[str, Any] | None = None) -> Path:
@@ -54,6 +75,14 @@ def _workspace_file(name: str, cfg: dict[str, Any] | None = None) -> Path:
     return sessions_dir(cfg) / _safe_workspace_name(name) / "workspace.json"
 
 
+def state_dir(name: str, cfg: dict[str, Any] | None = None) -> Path:
+    return sessions_dir(cfg) / _safe_workspace_name(name) / "state"
+
+
+def workflow_templates_dir() -> Path:
+    return Path(__file__).resolve().parents[1] / "data" / "workflow_state_templates"
+
+
 def file_etag(path: Path) -> str:
     if not path.exists():
         return ""
@@ -71,6 +100,30 @@ def _section_text(entries: list) -> str:
         elif entry:
             parts.append(str(entry))
     return "\n\n---\n\n".join(parts)
+
+
+def _read_yaml(path: Path, default: Any) -> Any:
+    if not path.exists():
+        return default
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return default if data is None else data
+
+
+def _write_yaml(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
+
+
+def _deep_merge(base: Any, patch: Any) -> Any:
+    if isinstance(base, dict) and isinstance(patch, dict):
+        out = dict(base)
+        for key, value in patch.items():
+            out[key] = _deep_merge(out.get(key), value)
+        return out
+    return patch
 
 
 def _session_sort_key(item: dict[str, Any]) -> tuple:
@@ -316,3 +369,110 @@ def append_section(
         "entry_count": len(workspace[section]),
         "entry": entry,
     }
+
+
+def ensure_state_files(
+    name: str,
+    chat_id: str | None = None,
+    *,
+    cfg: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create machine-readable state files for a live workspace.
+
+    Workflow templates are copied once into the session so each chat gets a
+    mutable live copy. Existing state files are preserved.
+    """
+    ensure_session(name, chat_id, cfg=cfg)
+    base = state_dir(name, cfg)
+    workflows = base / "workflows"
+    created: list[str] = []
+    base.mkdir(parents=True, exist_ok=True)
+    workflows.mkdir(parents=True, exist_ok=True)
+
+    session_path = base / "session_state.yaml"
+    if not session_path.exists():
+        _write_yaml(session_path, DEFAULT_SESSION_STATE)
+        created.append("session_state.yaml")
+
+    events_path = base / "events.jsonl"
+    if not events_path.exists():
+        events_path.write_text("", encoding="utf-8")
+        created.append("events.jsonl")
+
+    templates = workflow_templates_dir()
+    if templates.exists():
+        for template in templates.glob("*.yaml"):
+            target = workflows / template.name
+            if not target.exists():
+                target.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+                created.append(f"workflows/{template.name}")
+
+    return {"ok": True, "created": created, "state_dir": str(base)}
+
+
+def read_session_state(name: str, *, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    ensure_state_files(name, cfg=cfg)
+    data = _read_yaml(state_dir(name, cfg) / "session_state.yaml", DEFAULT_SESSION_STATE)
+    return data if isinstance(data, dict) else dict(DEFAULT_SESSION_STATE)
+
+
+def merge_session_state(
+    name: str,
+    patch: dict[str, Any],
+    *,
+    cfg: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    current = read_session_state(name, cfg=cfg)
+    merged = _deep_merge(current, patch or {})
+    _write_yaml(state_dir(name, cfg) / "session_state.yaml", merged)
+    return merged
+
+
+def read_workflow_state(
+    name: str,
+    workflow_id: str,
+    *,
+    cfg: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    ensure_state_files(name, cfg=cfg)
+    path = state_dir(name, cfg) / "workflows" / f"{_safe_workspace_name(workflow_id)}.yaml"
+    data = _read_yaml(path, {})
+    return data if isinstance(data, dict) else {}
+
+
+def merge_workflow_state(
+    name: str,
+    workflow_id: str,
+    patch: dict[str, Any],
+    *,
+    cfg: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    current = read_workflow_state(name, workflow_id, cfg=cfg)
+    merged = _deep_merge(current, patch or {})
+    path = state_dir(name, cfg) / "workflows" / f"{_safe_workspace_name(workflow_id)}.yaml"
+    _write_yaml(path, merged)
+    return merged
+
+
+def append_event(
+    name: str,
+    event: dict[str, Any],
+    *,
+    cfg: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    ensure_state_files(name, event.get("chat_id"), cfg=cfg)
+    path = state_dir(name, cfg) / "events.jsonl"
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    payload = dict(event or {})
+    payload["id"] = int(payload.get("id") or (len(lines) + 1))
+    payload.setdefault("ts", datetime.now(timezone.utc).isoformat())
+    path.write_text(
+        "\n".join([*lines, json.dumps(payload, ensure_ascii=False)]) + "\n",
+        encoding="utf-8",
+    )
+    merge_session_state(
+        name,
+        {"session": {"last_event_id": payload["id"], "updated_by": "scribe"}},
+        cfg=cfg,
+    )
+    return payload

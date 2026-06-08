@@ -1,0 +1,25 @@
+workflow:
+  id: research
+  title: "Research"
+  activation_tags: [research, search, file_read, finding]
+
+scribe:
+  skill: scribe-workflow-research
+  mode: workflow
+
+contract:
+  must_capture:
+    - question
+    - sources
+    - findings
+    - confidence
+    - next_action
+  completion_requires:
+    - findings_recorded
+
+state:
+  phase: inactive
+  active_question: null
+  findings: []
+  unresolved: []
+  last_source_event: null

@@ -1,0 +1,24 @@
+workflow:
+  id: planning
+  title: "Planning"
+  activation_tags: [planning, design, architecture, decision_candidate]
+
+scribe:
+  skill: scribe-workflow-planning
+  mode: workflow
+
+contract:
+  must_capture:
+    - goal
+    - constraints
+    - options
+    - decision
+    - next_action
+  completion_requires:
+    - plan_recorded
+
+state:
+  phase: inactive
+  current_decision: null
+  unresolved: []
+  last_evidence_event: null
