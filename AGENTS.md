@@ -55,7 +55,7 @@ template integration, and archive-oriented task notes.
   `agent.loop_data.current_tool.args` when `tool_args` is absent; Agent Zero
   core does not reliably pass `tool_args` into after-tool extensions.
 - When adding plugin cooperation, mark whether the component is `local` or
-  `bridge` in `docs/COMPONENT_BOUNDARIES.md`.
+  `bridge` in `docs/COMPONENT_BOUNDARIES.md` or the nearest durable docs file.
 - User-facing workflow docs live in `docs/pen-paper-workflows/`.
 - Agent-facing skills live in `skills/`.
 - Web/API surfaces should remain thin wrappers over helper logic.

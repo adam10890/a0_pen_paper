@@ -7,6 +7,7 @@ Run from agent-zero-2 repo root or plugin directory.
 """
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 import types
@@ -39,6 +40,41 @@ def _install_standalone_package_alias() -> None:
 
 
 _install_standalone_package_alias()
+
+
+def _bootstrap_plugin_pkg() -> None:
+    """Register the `usr.plugins.a0_pen_paper` package chain by file path.
+
+    When the script runs outside an Agent Zero `/a0` root (a bare clone, CI,
+    a worktree), the `usr.plugins...` package does not exist on sys.path.
+    Map the package names onto the real plugin directories so the plugin's
+    own absolute imports resolve.
+    """
+    mapping = {
+        "usr": [],
+        "usr.plugins": [],
+        "usr.plugins.a0_pen_paper": [str(PLUGIN_DIR)],
+        "usr.plugins.a0_pen_paper.tools": [str(PLUGIN_DIR / "tools")],
+        "usr.plugins.a0_pen_paper.helpers": [str(PLUGIN_DIR / "helpers")],
+    }
+    for name, path in mapping.items():
+        if name not in sys.modules:
+            mod = types.ModuleType(name)
+            mod.__path__ = path  # mark as (namespace) package
+            sys.modules[name] = mod
+
+
+def _load(qualname: str):
+    """Import `qualname`, falling back to a file-path package bootstrap.
+
+    Inside `/a0` the normal import succeeds. Anywhere else it raises
+    ModuleNotFoundError on `usr`; we then register the package chain and retry.
+    """
+    try:
+        return importlib.import_module(qualname)
+    except ModuleNotFoundError:
+        _bootstrap_plugin_pkg()
+        return importlib.import_module(qualname)
 
 
 def _ok(name: str, detail: str = "") -> bool:
@@ -116,8 +152,12 @@ def check_config_wiring() -> bool:
 
 def check_registry_integrity() -> bool:
     try:
-        from usr.plugins.a0_pen_paper.helpers.workflows_store import validate_registry_integrity
-        from usr.plugins.a0_pen_paper.tools._config import load_plugin_config
+        validate_registry_integrity = _load(
+            "usr.plugins.a0_pen_paper.helpers.workflows_store"
+        ).validate_registry_integrity
+        load_plugin_config = _load(
+            "usr.plugins.a0_pen_paper.tools._config"
+        ).load_plugin_config
 
         errors = validate_registry_integrity(load_plugin_config())
         if errors:
@@ -181,12 +221,13 @@ def check_sessions_api() -> bool:
     if missing:
         return _fail("sessions API", f"missing {missing}")
     try:
-        from usr.plugins.a0_pen_paper.helpers.sessions_store import (
-            list_sessions,
-            file_etag,
-            VALID_SECTIONS,
-        )
-        from usr.plugins.a0_pen_paper.tools._config import load_plugin_config
+        _ss = _load("usr.plugins.a0_pen_paper.helpers.sessions_store")
+        list_sessions = _ss.list_sessions
+        file_etag = _ss.file_etag
+        VALID_SECTIONS = _ss.VALID_SECTIONS
+        load_plugin_config = _load(
+            "usr.plugins.a0_pen_paper.tools._config"
+        ).load_plugin_config
 
         if "execution_log" not in VALID_SECTIONS:
             return _fail("sessions_store sections", "execution_log missing")

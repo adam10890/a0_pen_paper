@@ -92,7 +92,9 @@ def install(**kwargs):
     ]:
         (runtime_dir / rel).mkdir(parents=True, exist_ok=True)
 
-    _copy_missing(plugin_dir / "data" / "config" / "onboarding.yaml", runtime_dir / "config" / "onboarding.yaml")
+    # System-managed config: overwrite on every install so corrected runtime
+    # files (e.g. the UTF-8 re-decode fix) reach already-deployed installs.
+    shutil.copy2(plugin_dir / "data" / "config" / "onboarding.yaml", runtime_dir / "config" / "onboarding.yaml")
     shutil.copy2(plugin_dir / "data" / "config" / "rules.yaml", runtime_dir / "config" / "rules.yaml")
     _copy_missing(plugin_dir / "data" / "templates" / "session.md", wf_dir / "session.md")
 
