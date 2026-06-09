@@ -61,6 +61,21 @@
         color: var(--color-text);
     }
 
+    .pnpwf-lang-btn {
+        font-size: 0.66rem;
+        padding: 0.24rem 0.5rem;
+        border-radius: 0.35rem;
+        border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+    }
+
+    .pnpwf-lang-btn:hover {
+        color: var(--color-text);
+        border-color: var(--color-highlight);
+    }
+
     .pnpwf-stale-banner {
         flex: 0 0 auto;
         padding: 0.4rem 0.65rem;
@@ -178,7 +193,8 @@
         border-bottom: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
     }
 
-    .pnpwf-live-bar label {
+    .pnpwf-live-bar label,
+    .pnpwf-diagram-controls label {
         font-size: 0.68rem;
         color: var(--color-text-muted);
         display: inline-flex;
@@ -186,13 +202,52 @@
         gap: 0.35rem;
     }
 
-    .pnpwf-live-bar select {
+    .pnpwf-live-bar select,
+    .pnpwf-diagram-controls select {
         font-size: 0.75rem;
         padding: 0.25rem 0.4rem;
         border-radius: 0.3rem;
         border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
         background: var(--color-input-background, var(--color-background));
         color: var(--color-text);
+    }
+
+    .pnpwf-diagram-controls {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.65rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--color-border) 35%, transparent);
+        background: color-mix(in srgb, var(--color-background) 97%, #000 3%);
+    }
+
+    .pnpwf-diagram-preview {
+        flex: 0 0 auto;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5rem;
+        align-items: start;
+        padding: 0.45rem 0.65rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--color-border) 35%, transparent);
+        background: color-mix(in srgb, var(--color-background) 94%, #000 6%);
+    }
+
+    .pnpwf-diagram-preview pre {
+        margin: 0.2rem 0 0;
+        max-height: 4.8rem;
+        overflow: auto;
+        white-space: pre-wrap;
+        font: 0.68rem/1.35 ui-monospace, Consolas, monospace;
+        color: var(--color-text-muted);
+    }
+
+    .pnpwf-diagram-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        justify-content: flex-end;
     }
 
     .pnpwf-meta label {
@@ -337,6 +392,12 @@
         </div>
         <span class="pnpwf-hint" x-text="$store.penPaperWorkflows?.status"></span>
         <span class="pnpwf-hint" style="margin-left:auto" x-show="$store.penPaperWorkflows?.mode === 'templates' && $store.penPaperWorkflows?.dirty">●</span>
+        <button
+            type="button"
+            class="pnpwf-lang-btn"
+            @click="$store.penPaperWorkflows.toggleUiLang()"
+            x-text="$store.penPaperWorkflows.t('languageButton')"
+        ></button>
     </header>
 
     <div
@@ -344,8 +405,8 @@
         x-show="$store.penPaperWorkflows?.mode === 'live' && $store.penPaperWorkflows?.sessionStale"
         x-cloak
     >
-        הסוכן עדכן את הסשן — רענן (טען מחדש) או הוסף את הטקסט שלך לפני שינוי נוסף.
-        <button type="button" class="pnpwf-btn" style="margin-left:0.5rem" @click="$store.penPaperWorkflows.loadSessionSection()">רענן</button>
+        <span x-text="$store.penPaperWorkflows.t('staleBanner')"></span>
+        <button type="button" class="pnpwf-btn" style="margin-left:0.5rem" @click="$store.penPaperWorkflows.loadSessionSection()" x-text="$store.penPaperWorkflows.t('refresh')"></button>
     </div>
 
     <!-- Templates mode -->
@@ -355,7 +416,7 @@
     >
         <aside class="pnpwf-sidebar">
             <div class="pnpwf-sidebar-actions">
-                <button class="pnpwf-btn primary" type="button" @click="$store.penPaperWorkflows.createNew()">+ חדש</button>
+                <button class="pnpwf-btn primary" type="button" @click="$store.penPaperWorkflows.createNew()" x-text="$store.penPaperWorkflows.t('new')"></button>
                 <button class="pnpwf-btn" type="button" @click="$store.penPaperWorkflows.refreshList()">↻</button>
             </div>
             <div class="pnpwf-list">
@@ -373,23 +434,70 @@
 
         <section class="pnpwf-main" x-show="$store.penPaperWorkflows.selected">
             <div class="pnpwf-meta">
-                <label>תיאור
+                <label><span x-text="$store.penPaperWorkflows.t('description')"></span>
                     <input type="text" x-model="$store.penPaperWorkflows.description" @input="$store.penPaperWorkflows.markDirty()" />
                 </label>
-                <label>תיאור (עברית)
+                <label><span x-text="$store.penPaperWorkflows.t('descriptionHe')"></span>
                     <input type="text" x-model="$store.penPaperWorkflows.descriptionHe" @input="$store.penPaperWorkflows.markDirty()" />
                 </label>
-                <label>שלבים (מופרדים בפסיק)
+                <label><span x-text="$store.penPaperWorkflows.t('phases')"></span>
                     <input type="text" x-model="$store.penPaperWorkflows.phasesText" @input="$store.penPaperWorkflows.markDirty()" />
                 </label>
-                <label>טריגרים (מופרדים בפסיק)
+                <label><span x-text="$store.penPaperWorkflows.t('triggers')"></span>
                     <input type="text" x-model="$store.penPaperWorkflows.triggersText" @input="$store.penPaperWorkflows.markDirty()" />
                 </label>
             </div>
 
+            <div class="pnpwf-diagram-controls">
+                <label><span x-text="$store.penPaperWorkflows.t('diagram')"></span>
+                    <select x-model="$store.penPaperWorkflows.diagramType">
+                        <template x-for="d in $store.penPaperWorkflows.diagramTypes" :key="d">
+                            <option :value="d" x-text="d"></option>
+                        </template>
+                    </select>
+                </label>
+                <label><span x-text="$store.penPaperWorkflows.t('theme')"></span>
+                    <select x-model="$store.penPaperWorkflows.diagramTheme">
+                        <template x-for="t in $store.penPaperWorkflows.diagramThemes" :key="t">
+                            <option :value="t" x-text="t"></option>
+                        </template>
+                    </select>
+                </label>
+                <button
+                    type="button"
+                    class="pnpwf-btn"
+                    @click="$store.penPaperWorkflows.generateDiagram()"
+                    :disabled="$store.penPaperWorkflows.generatingDiagram"
+                >
+                    <span class="material-symbols-outlined" style="font-size:1rem;vertical-align:-0.2rem">account_tree</span>
+                    <span x-text="$store.penPaperWorkflows.generatingDiagram ? $store.penPaperWorkflows.t('creating') : $store.penPaperWorkflows.t('create')"></span>
+                </button>
+                <span class="pnpwf-hint" x-show="$store.penPaperWorkflows.diagramPath" x-text="$store.penPaperWorkflows.diagramPath"></span>
+            </div>
+
+            <div class="pnpwf-diagram-preview" x-show="$store.penPaperWorkflows.diagramPath" x-cloak>
+                <div>
+                    <strong class="pnpwf-hint" x-text="$store.penPaperWorkflows.t('diagramPreview')"></strong>
+                    <pre x-text="$store.penPaperWorkflows.diagramSketch"></pre>
+                </div>
+                <div class="pnpwf-diagram-actions">
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.copyDiagramPath()" x-text="$store.penPaperWorkflows.t('copyPath')"></button>
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.downloadDiagram()" x-text="$store.penPaperWorkflows.t('download')"></button>
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.openDrawio()" x-text="$store.penPaperWorkflows.t('openDrawio')"></button>
+                    <button
+                        type="button"
+                        class="pnpwf-btn primary"
+                        @click="$store.penPaperWorkflows.sendDiagramToWhiteboard()"
+                        :disabled="$store.penPaperWorkflows.sendingWhiteboard"
+                    >
+                        <span x-text="$store.penPaperWorkflows.sendingWhiteboard ? $store.penPaperWorkflows.t('sendingWhiteboard') : $store.penPaperWorkflows.t('sendWhiteboard')"></span>
+                    </button>
+                </div>
+            </div>
+
             <div class="pnpwf-tabs">
-                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'edit' }" @click="$store.penPaperWorkflows.tab = 'edit'">עריכה</button>
-                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'preview' }" @click="$store.penPaperWorkflows.tab = 'preview'">תצוגה</button>
+                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'edit' }" @click="$store.penPaperWorkflows.tab = 'edit'" x-text="$store.penPaperWorkflows.t('edit')"></button>
+                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'preview' }" @click="$store.penPaperWorkflows.tab = 'preview'" x-text="$store.penPaperWorkflows.t('preview')"></button>
             </div>
 
             <div class="pnpwf-editor-area">
@@ -409,10 +517,10 @@
             <footer class="pnpwf-footer">
                 <span class="pnpwf-hint" x-text="'usr/pen_and_paper/knowledge/workflows/' + ($store.penPaperWorkflows.selected || '') + '.md'"></span>
                 <div style="display:flex;gap:0.35rem">
-                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.revert()" :disabled="!$store.penPaperWorkflows.dirty">בטל</button>
-                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.deleteSelected()">מחק</button>
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.revert()" :disabled="!$store.penPaperWorkflows.dirty" x-text="$store.penPaperWorkflows.t('revert')"></button>
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.deleteSelected()" x-text="$store.penPaperWorkflows.t('delete')"></button>
                     <button type="button" class="pnpwf-btn primary" @click="$store.penPaperWorkflows.save()" :disabled="$store.penPaperWorkflows.saving || !$store.penPaperWorkflows.dirty">
-                        <span x-text="$store.penPaperWorkflows.saving ? 'שומר...' : 'שמור'"></span>
+                        <span x-text="$store.penPaperWorkflows.saving ? $store.penPaperWorkflows.t('saving') : $store.penPaperWorkflows.t('save')"></span>
                     </button>
                 </div>
             </footer>
@@ -426,14 +534,14 @@
     >
         <aside class="pnpwf-sidebar">
             <div class="pnpwf-chat-bar" x-show="$store.penPaperWorkflows?.currentChatId">
-                <span>צ'אט: </span>
+                <span x-text="$store.penPaperWorkflows.t('chat')"></span>
                 <span x-text="$store.penPaperWorkflows.currentChatId"></span>
             </div>
             <div class="pnpwf-sidebar-actions">
                 <button class="pnpwf-btn" type="button" @click="$store.penPaperWorkflows.refreshSessions()">↻</button>
                 <label class="pnpwf-hint" style="display:flex;align-items:center;gap:0.3rem">
                     <input type="checkbox" x-model="$store.penPaperWorkflows.followAgent" />
-                    Follow agent
+                    <span x-text="$store.penPaperWorkflows.t('followAgent')"></span>
                 </label>
                 <label class="pnpwf-hint" style="display:flex;align-items:center;gap:0.3rem">
                     <input
@@ -441,7 +549,7 @@
                         x-model="$store.penPaperWorkflows.liveChatOnly"
                         @change="$store.penPaperWorkflows.refreshSessions()"
                     />
-                    רק צ'אט זה
+                    <span x-text="$store.penPaperWorkflows.t('currentChatOnly')"></span>
                 </label>
             </div>
             <div class="pnpwf-list">
@@ -457,9 +565,9 @@
                         @click="$store.penPaperWorkflows.selectSession(s.name)"
                     >
                         <span x-text="s.name"></span>
-                        <span class="pnpwf-badge" x-show="s.is_current_chat">צ'אט זה</span>
-                        <span class="pnpwf-badge" x-show="s.is_chat_focus && !s.is_current_chat">פעיל</span>
-                        <span class="pnpwf-badge muted" x-show="!s.is_current_chat && s.is_orphan">ללא תג</span>
+                        <span class="pnpwf-badge" x-show="s.is_current_chat" x-text="$store.penPaperWorkflows.t('currentChat')"></span>
+                        <span class="pnpwf-badge" x-show="s.is_chat_focus && !s.is_current_chat" x-text="$store.penPaperWorkflows.t('active')"></span>
+                        <span class="pnpwf-badge muted" x-show="!s.is_current_chat && s.is_orphan" x-text="$store.penPaperWorkflows.t('untagged')"></span>
                         <span class="pnpwf-hint" x-show="s.template" x-text="' · ' + s.template"></span>
                     </button>
                 </template>
@@ -468,7 +576,7 @@
 
         <section class="pnpwf-main" x-show="$store.penPaperWorkflows.selectedSession">
             <div class="pnpwf-live-bar">
-                <label>Section
+                <label><span x-text="$store.penPaperWorkflows.t('section')"></span>
                     <select
                         x-model="$store.penPaperWorkflows.selectedSection"
                         @change="$store.penPaperWorkflows.loadSessionSection()"
@@ -482,18 +590,66 @@
                         <option value="execution_log">execution_log</option>
                     </select>
                 </label>
-                <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.copySessionText()">העתק</button>
+                <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.copySessionText()" x-text="$store.penPaperWorkflows.t('copy')"></button>
                 <button
                     type="button"
                     class="pnpwf-btn"
                     x-show="$store.penPaperWorkflows.sessionMetadata?.template"
                     @click="$store.penPaperWorkflows.openTemplateFromSession()"
-                >Open template</button>
+                    x-text="$store.penPaperWorkflows.t('openTemplate')"
+                ></button>
+            </div>
+
+            <div class="pnpwf-diagram-controls">
+                <label><span x-text="$store.penPaperWorkflows.t('diagram')"></span>
+                    <select x-model="$store.penPaperWorkflows.diagramType">
+                        <template x-for="d in $store.penPaperWorkflows.diagramTypes" :key="d">
+                            <option :value="d" x-text="d"></option>
+                        </template>
+                    </select>
+                </label>
+                <label><span x-text="$store.penPaperWorkflows.t('theme')"></span>
+                    <select x-model="$store.penPaperWorkflows.diagramTheme">
+                        <template x-for="t in $store.penPaperWorkflows.diagramThemes" :key="t">
+                            <option :value="t" x-text="t"></option>
+                        </template>
+                    </select>
+                </label>
+                <button
+                    type="button"
+                    class="pnpwf-btn"
+                    @click="$store.penPaperWorkflows.generateDiagram()"
+                    :disabled="$store.penPaperWorkflows.generatingDiagram"
+                >
+                    <span class="material-symbols-outlined" style="font-size:1rem;vertical-align:-0.2rem">account_tree</span>
+                    <span x-text="$store.penPaperWorkflows.generatingDiagram ? $store.penPaperWorkflows.t('creating') : $store.penPaperWorkflows.t('create')"></span>
+                </button>
+                <span class="pnpwf-hint" x-show="$store.penPaperWorkflows.diagramPath" x-text="$store.penPaperWorkflows.diagramPath"></span>
+            </div>
+
+            <div class="pnpwf-diagram-preview" x-show="$store.penPaperWorkflows.diagramPath" x-cloak>
+                <div>
+                    <strong class="pnpwf-hint" x-text="$store.penPaperWorkflows.t('diagramPreview')"></strong>
+                    <pre x-text="$store.penPaperWorkflows.diagramSketch"></pre>
+                </div>
+                <div class="pnpwf-diagram-actions">
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.copyDiagramPath()" x-text="$store.penPaperWorkflows.t('copyPath')"></button>
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.downloadDiagram()" x-text="$store.penPaperWorkflows.t('download')"></button>
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.openDrawio()" x-text="$store.penPaperWorkflows.t('openDrawio')"></button>
+                    <button
+                        type="button"
+                        class="pnpwf-btn primary"
+                        @click="$store.penPaperWorkflows.sendDiagramToWhiteboard()"
+                        :disabled="$store.penPaperWorkflows.sendingWhiteboard"
+                    >
+                        <span x-text="$store.penPaperWorkflows.sendingWhiteboard ? $store.penPaperWorkflows.t('sendingWhiteboard') : $store.penPaperWorkflows.t('sendWhiteboard')"></span>
+                    </button>
+                </div>
             </div>
 
             <div class="pnpwf-tabs">
-                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'edit' }" @click="$store.penPaperWorkflows.tab = 'edit'">עריכה</button>
-                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'preview' }" @click="$store.penPaperWorkflows.tab = 'preview'">תצוגה</button>
+                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'edit' }" @click="$store.penPaperWorkflows.tab = 'edit'" x-text="$store.penPaperWorkflows.t('edit')"></button>
+                <button type="button" class="pnpwf-tab" :class="{ 'is-active': $store.penPaperWorkflows.tab === 'preview' }" @click="$store.penPaperWorkflows.tab = 'preview'" x-text="$store.penPaperWorkflows.t('preview')"></button>
             </div>
 
             <div class="pnpwf-editor-area">
@@ -513,14 +669,14 @@
             <footer class="pnpwf-footer">
                 <span class="pnpwf-hint" x-text="'usr/pen_and_paper/sessions/active/' + ($store.penPaperWorkflows.selectedSession || '')"></span>
                 <div style="display:flex;gap:0.35rem">
-                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.loadSessionSection()">רענן</button>
+                    <button type="button" class="pnpwf-btn" @click="$store.penPaperWorkflows.loadSessionSection()" x-text="$store.penPaperWorkflows.t('refresh')"></button>
                     <button
                         type="button"
                         class="pnpwf-btn primary"
                         @click="$store.penPaperWorkflows.saveSessionNote()"
                         :disabled="$store.penPaperWorkflows.saving || !$store.penPaperWorkflows.content?.trim()"
                     >
-                        <span x-text="$store.penPaperWorkflows.saving ? 'מוסיף...' : 'הוסף לסשן'"></span>
+                        <span x-text="$store.penPaperWorkflows.saving ? $store.penPaperWorkflows.t('adding') : $store.penPaperWorkflows.t('addToSession')"></span>
                     </button>
                 </div>
             </footer>
@@ -531,15 +687,15 @@
         class="pnpwf-empty"
         x-show="$store.penPaperWorkflows?.mode === 'templates' && !$store.penPaperWorkflows?.templates?.length && !$store.penPaperWorkflows?.loading"
     >
-        אין תבניות. הרץ execute.py install או צור תבנית חדשה.
+        <span x-text="$store.penPaperWorkflows.t('emptyTemplates')"></span>
     </div>
 
     <div
         class="pnpwf-empty"
         x-show="$store.penPaperWorkflows?.mode === 'live' && !$store.penPaperWorkflows?.sessions?.length && !$store.penPaperWorkflows?.loading"
     >
-        <span x-show="!$store.penPaperWorkflows?.sessionTotalCount">אין סשנים פעילים. בקש מהסוכן ליצור workspace עם pen_paper.</span>
-        <span x-show="$store.penPaperWorkflows?.sessionTotalCount && $store.penPaperWorkflows?.liveChatOnly">אין סשנים לצ'אט הזה. בטל «רק צ'אט זה» לראות סשנים מצ'אטים אחרים.</span>
-        <span x-show="$store.penPaperWorkflows?.sessionTotalCount && !$store.penPaperWorkflows?.liveChatOnly">אין סשנים להצגה.</span>
+        <span x-show="!$store.penPaperWorkflows?.sessionTotalCount" x-text="$store.penPaperWorkflows.t('emptyLiveNone')"></span>
+        <span x-show="$store.penPaperWorkflows?.sessionTotalCount && $store.penPaperWorkflows?.liveChatOnly" x-text="$store.penPaperWorkflows.t('emptyLiveChatOnly')"></span>
+        <span x-show="$store.penPaperWorkflows?.sessionTotalCount && !$store.penPaperWorkflows?.liveChatOnly" x-text="$store.penPaperWorkflows.t('emptyLive')"></span>
     </div>
 </div>

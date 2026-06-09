@@ -84,6 +84,8 @@ def install(**kwargs):
         "config",
         "templates",
         "knowledge/workflows",
+        "diagrams/templates",
+        "diagrams/ad_hoc",
         "vectors",
         "_archived/templates",
         ".ui",

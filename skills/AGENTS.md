@@ -1,4 +1,4 @@
-# DOX contract - a0_pen_paper-repo/skills
+# DOX contract - a0_pen_paper/skills
 
 ## Purpose
 

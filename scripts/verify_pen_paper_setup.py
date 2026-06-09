@@ -14,11 +14,32 @@ import types
 from pathlib import Path
 
 PLUGIN_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = PLUGIN_DIR.parents[2] if len(PLUGIN_DIR.parents) >= 3 else PLUGIN_DIR.parent
+if PLUGIN_DIR.parent.name == "plugins" and PLUGIN_DIR.parent.parent.name == "usr":
+    REPO_ROOT = PLUGIN_DIR.parent.parent.parent
+else:
+    REPO_ROOT = PLUGIN_DIR
 
 # Allow imports when run from repo root
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+if str(PLUGIN_DIR) not in sys.path:
+    sys.path.insert(0, str(PLUGIN_DIR))
+
+
+def _install_standalone_package_alias() -> None:
+    """Let standalone source imports resolve as usr.plugins.a0_pen_paper.*."""
+    if "usr.plugins.a0_pen_paper" in sys.modules:
+        return
+    usr = sys.modules.setdefault("usr", types.ModuleType("usr"))
+    plugins = sys.modules.setdefault("usr.plugins", types.ModuleType("usr.plugins"))
+    pkg = types.ModuleType("usr.plugins.a0_pen_paper")
+    pkg.__path__ = [str(PLUGIN_DIR)]
+    setattr(usr, "plugins", plugins)
+    setattr(plugins, "a0_pen_paper", pkg)
+    sys.modules["usr.plugins.a0_pen_paper"] = pkg
+
+
+_install_standalone_package_alias()
 
 
 def _bootstrap_plugin_pkg() -> None:
@@ -73,12 +94,17 @@ def check_py_compile() -> bool:
 
     files = [
         PLUGIN_DIR / "tools" / "pen_paper.py",
+        PLUGIN_DIR / "tools" / "pen_paper_diagram.py",
         PLUGIN_DIR / "tools" / "_config.py",
+        PLUGIN_DIR / "helpers" / "diagram_generator.py",
         PLUGIN_DIR / "helpers" / "workflows_store.py",
         PLUGIN_DIR / "helpers" / "workflow_executor.py",
         PLUGIN_DIR / "helpers" / "sessions_store.py",
         PLUGIN_DIR / "extensions" / "python" / "tool_execute_before" / "_50_pen_paper_workflow_guard.py",
         PLUGIN_DIR / "extensions" / "python" / "tool_execute_after" / "_51_pen_paper_focus.py",
+        PLUGIN_DIR / "api" / "diagrams_generate.py",
+        PLUGIN_DIR / "api" / "diagrams_send_whiteboard.py",
+        PLUGIN_DIR / "helpers" / "diagram_sources.py",
     ]
     ok = True
     for fp in files:
@@ -92,6 +118,22 @@ def check_py_compile() -> bool:
     if ok:
         _ok("py_compile", f"{len(files)} files")
     return ok
+
+
+def check_diagram_tool() -> bool:
+    tool = PLUGIN_DIR / "tools" / "pen_paper_diagram.py"
+    api = PLUGIN_DIR / "api" / "diagrams_generate.py"
+    bridge_api = PLUGIN_DIR / "api" / "diagrams_send_whiteboard.py"
+    prompt = PLUGIN_DIR / "prompts" / "agent.system.tool.pen_paper_diagram.md"
+    helper = PLUGIN_DIR / "helpers" / "diagram_generator.py"
+    doc = PLUGIN_DIR / "docs" / "pen-paper-workflows" / "FLOWFORGE_INTEGRATION.md"
+    missing = [p.name for p in (tool, api, bridge_api, prompt, helper, doc) if not p.exists()]
+    if missing:
+        return _fail("diagram tool files", f"missing {missing}")
+    text = prompt.read_text(encoding="utf-8")
+    if "source_type" not in text or ".drawio" not in text:
+        return _fail("diagram prompt", "missing required guidance")
+    return _ok("diagram tool files")
 
 
 def check_execution_log_section() -> bool:
@@ -243,6 +285,7 @@ def main() -> int:
         check_config_wiring(),
         check_registry_integrity(),
         check_seed_templates(),
+        check_diagram_tool(),
         check_runtime_registry(),
         check_skills(),
         check_rules_contract(),

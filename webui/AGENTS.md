@@ -1,4 +1,4 @@
-# DOX contract - a0_pen_paper-repo/webui
+# DOX contract - a0_pen_paper/webui
 
 ## Purpose
 

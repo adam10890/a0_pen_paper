@@ -1,0 +1,26 @@
+workflow:
+  id: debugging
+  title: "Debugging"
+  activation_tags: [tool_error, error_log, test_failure, unexpected_behavior]
+
+scribe:
+  skill: scribe-workflow-debugging
+  mode: workflow
+
+contract:
+  must_capture:
+    - symptom
+    - reproduction
+    - hypothesis
+    - evidence
+    - fix_attempt
+    - verification
+  completion_requires:
+    - root_cause_recorded
+    - verification_passed
+
+state:
+  phase: inactive
+  current_hypothesis: null
+  unresolved: []
+  last_evidence_event: null

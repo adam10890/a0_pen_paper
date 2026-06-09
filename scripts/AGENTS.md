@@ -1,4 +1,4 @@
-# DOX contract - a0_pen_paper-repo/scripts
+# DOX contract - a0_pen_paper/scripts
 
 ## Purpose
 

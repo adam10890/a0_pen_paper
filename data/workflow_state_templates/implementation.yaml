@@ -1,0 +1,24 @@
+workflow:
+  id: implementation
+  title: "Implementation"
+  activation_tags: [implementation, file_change, code_change]
+
+scribe:
+  skill: scribe-workflow-implementation
+  mode: workflow
+
+contract:
+  must_capture:
+    - target_files
+    - behavior_change
+    - assumptions
+    - next_action
+  completion_requires:
+    - implementation_recorded
+    - verification_planned
+
+state:
+  phase: inactive
+  current_files: []
+  unresolved: []
+  last_change_event: null

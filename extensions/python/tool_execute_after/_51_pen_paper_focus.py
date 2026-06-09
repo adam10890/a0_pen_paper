@@ -9,6 +9,18 @@ except ImportError:
     from python.helpers.extension import Extension  # type: ignore
 
 
+def _current_tool_args(agent) -> dict:
+    tool = getattr(getattr(agent, "loop_data", None), "current_tool", None)
+    args = getattr(tool, "args", None)
+    return args if isinstance(args, dict) else {}
+
+
+def _effective_tool_args(tool_args: dict | None, agent) -> dict:
+    if isinstance(tool_args, dict) and tool_args:
+        return tool_args
+    return _current_tool_args(agent)
+
+
 class PenPaperFocus(Extension):
     async def execute(
         self,
@@ -19,7 +31,7 @@ class PenPaperFocus(Extension):
     ):
         if tool_name != "pen_paper":
             return
-        args = tool_args or {}
+        args = _effective_tool_args(tool_args, getattr(self, "agent", None))
         action = args.get("action", "")
         if action not in ("create", "use_template", "update", "read"):
             return

@@ -1,0 +1,24 @@
+workflow:
+  id: verification
+  title: "Verification"
+  activation_tags: [verification, test_result, compile_result]
+
+scribe:
+  skill: scribe-workflow-verification
+  mode: workflow
+
+contract:
+  must_capture:
+    - command
+    - result
+    - failures
+    - followup
+  completion_requires:
+    - fresh_verification_recorded
+
+state:
+  phase: inactive
+  latest_command: null
+  latest_result: null
+  unresolved: []
+  last_result_event: null

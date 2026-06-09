@@ -1,4 +1,4 @@
-# DOX contract - a0_pen_paper-repo/prompts
+# DOX contract - a0_pen_paper/prompts
 
 ## Purpose
 

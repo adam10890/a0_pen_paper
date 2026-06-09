@@ -1,4 +1,4 @@
-# DOX contract - a0_pen_paper-repo/helpers
+# DOX contract - a0_pen_paper/helpers
 
 ## Purpose
 
@@ -7,9 +7,9 @@ workflow execution support.
 
 ## Ownership
 
-- Session helpers own live session files, focus, State-DOX runtime files, event
-  append, and template copy/merge behavior.
-- Workflow helpers own workflow template registry and runtime-published
+- `sessions_store.py` owns live session files, focus, State-DOX runtime files,
+  event append, and template copy/merge behavior.
+- `workflows_store.py` owns workflow template registry and UI-published
   State-DOX template persistence.
 - Diagram helpers own deterministic draw.io/whiteboard shape generation.
 
@@ -28,7 +28,8 @@ workflow execution support.
 
 ## Verification
 
-- Run session/workflow tests for State-DOX or storage changes.
+- Run `python -m unittest tests.test_session_state tests.test_workflows_publish -v`
+  when changing State-DOX/session workflow behavior.
 - Run `python -m py_compile` on touched helper files.
 
 ## Child DOX Index

@@ -1,4 +1,4 @@
-# DOX contract - a0_pen_paper-repo/docs
+# DOX contract - a0_pen_paper/docs
 
 ## Purpose
 
@@ -13,8 +13,7 @@ notes.
 
 ## Local Contracts
 
-- Component boundary docs must stay aligned with plugin cooperation changes
-  when such docs exist in this repository.
+- `COMPONENT_BOUNDARIES.md` must stay aligned with plugin cooperation changes.
 - Workflow docs should distinguish shipped behavior from deferred contract work.
 
 ## Work Guidance

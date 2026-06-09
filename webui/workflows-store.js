@@ -19,8 +19,147 @@ const LIVE_SECTIONS = [
     "backtrack",
     "execution_log",
 ];
+const DIAGRAM_TYPES = ["flow", "flow-vertical", "layers", "sequence", "timeline"];
+const DIAGRAM_THEMES = ["tech-blue", "morandi", "mint", "terracotta", "indigo"];
+const UI_TEXT = {
+    he: {
+        languageButton: "English",
+        dirtyTemplateConfirm: "יש שינויים שלא נשמרו בתבנית. לעבור למצב Live בכל זאת?",
+        dirtyLiveConfirm: "יש טקסט שלא נוסף לסשן. לעבור לתבניות בכל זאת?",
+        dirtySessionConfirm: "יש טקסט שלא נוסף לסשן. לעבור לסשן אחר בכל זאת?",
+        dirtyTemplateSwitchConfirm: "יש שינויים שלא נשמרו. לעבור לתבנית אחרת בכל זאת?",
+        chatOtherSessions: "סשנים קיימים בצ'אטים אחרים — בטל 'רק צ'אט זה'",
+        staleToast: "הסוכן עדכן את הסשן — רענן ואז הוסף שוב",
+        addedToSession: "נוסף לסשן",
+        noTextToCopy: "אין טקסט להעתקה",
+        copied: "הועתק",
+        noLinkedTemplate: "לסשן אין תבנית מקושרת",
+        templateNotFound: "תבנית לא נמצאה",
+        noSourceForDiagram: "בחר תבנית או סשן לפני יצירת דיאגרמה",
+        diagramCreated: "דיאגרמה נוצרה",
+        agentUpdatedRefresh: "הסוכן עדכן — רענן או הוסף לסשן",
+        agentUpdated: "עודכן מהסוכן",
+        unsavedTemplate: "שינויים שלא נשמרו",
+        saved: "נשמר",
+        createTemplatePrompt: "שם תבנית חדשה (אותיות קטנות, מספרים, קו תחתון):",
+        newTemplateDesc: "New workflow template",
+        templateCreated: "תבנית נוצרה",
+        cannotDeleteSession: "לא ניתן למחוק את תבנית session",
+        deleteTemplateConfirm: "למחוק את התבנית",
+        templateDeleted: "תבנית נמחקה",
+        openCanvasWarning: "פתח את לוח Canvas מימין ובחר Workflows",
+        staleBanner: "הסוכן עדכן את הסשן — רענן (טען מחדש) או הוסף את הטקסט שלך לפני שינוי נוסף.",
+        refresh: "רענן",
+        new: "+ חדש",
+        description: "תיאור",
+        descriptionHe: "תיאור (עברית)",
+        phases: "שלבים (מופרדים בפסיק)",
+        triggers: "טריגרים (מופרדים בפסיק)",
+        edit: "עריכה",
+        preview: "תצוגה",
+        revert: "בטל",
+        delete: "מחק",
+        save: "שמור",
+        saving: "שומר...",
+        chat: "צ'אט:",
+        followAgent: "Follow agent",
+        currentChatOnly: "רק צ'אט זה",
+        currentChat: "צ'אט זה",
+        active: "פעיל",
+        untagged: "ללא תג",
+        section: "Section",
+        copy: "העתק",
+        openTemplate: "Open template",
+        diagram: "Diagram",
+        theme: "Theme",
+        diagramPreview: "תצוגת דיאגרמה",
+        copyPath: "העתק נתיב",
+        download: "הורד",
+        openDrawio: "פתח draw.io",
+        sendWhiteboard: "שלח ל־Whiteboard",
+        sendingWhiteboard: "שולח...",
+        sentWhiteboard: "נשלח ל־Whiteboard",
+        noDiagramYet: "צור דיאגרמה קודם",
+        create: "Create",
+        creating: "Creating...",
+        addToSession: "הוסף לסשן",
+        adding: "מוסיף...",
+        emptyTemplates: "אין תבניות. הרץ execute.py install או צור תבנית חדשה.",
+        emptyLiveNone: "אין סשנים פעילים. בקש מהסוכן ליצור workspace עם pen_paper.",
+        emptyLiveChatOnly: "אין סשנים לצ'אט הזה. בטל «רק צ'אט זה» לראות סשנים מצ'אטים אחרים.",
+        emptyLive: "אין סשנים להצגה.",
+    },
+    en: {
+        languageButton: "עברית",
+        dirtyTemplateConfirm: "This template has unsaved changes. Switch to Live anyway?",
+        dirtyLiveConfirm: "This session has unsaved text. Switch to Templates anyway?",
+        dirtySessionConfirm: "This session has unsaved text. Switch sessions anyway?",
+        dirtyTemplateSwitchConfirm: "This template has unsaved changes. Switch templates anyway?",
+        chatOtherSessions: "Sessions exist in other chats. Turn off 'This chat only'.",
+        staleToast: "The agent updated the session. Refresh and add again.",
+        addedToSession: "Added to session",
+        noTextToCopy: "Nothing to copy",
+        copied: "Copied",
+        noLinkedTemplate: "This session has no linked template",
+        templateNotFound: "Template not found",
+        noSourceForDiagram: "Select a template or session before creating a diagram",
+        diagramCreated: "Diagram created",
+        agentUpdatedRefresh: "Agent updated the session. Refresh or add to session.",
+        agentUpdated: "Updated by agent",
+        unsavedTemplate: "Unsaved changes",
+        saved: "Saved",
+        createTemplatePrompt: "New template name (lowercase letters, numbers, underscores):",
+        newTemplateDesc: "New workflow template",
+        templateCreated: "Template created",
+        cannotDeleteSession: "The built-in session template cannot be deleted",
+        deleteTemplateConfirm: "Delete template",
+        templateDeleted: "Template deleted",
+        openCanvasWarning: "Open the right Canvas and choose Workflows",
+        staleBanner: "The agent updated this session. Refresh, or add your text before making another change.",
+        refresh: "Refresh",
+        new: "+ New",
+        description: "Description",
+        descriptionHe: "Description (Hebrew)",
+        phases: "Phases (comma-separated)",
+        triggers: "Triggers (comma-separated)",
+        edit: "Edit",
+        preview: "Preview",
+        revert: "Revert",
+        delete: "Delete",
+        save: "Save",
+        saving: "Saving...",
+        chat: "Chat:",
+        followAgent: "Follow agent",
+        currentChatOnly: "This chat only",
+        currentChat: "This chat",
+        active: "Active",
+        untagged: "Untagged",
+        section: "Section",
+        copy: "Copy",
+        openTemplate: "Open template",
+        diagram: "Diagram",
+        theme: "Theme",
+        diagramPreview: "Diagram preview",
+        copyPath: "Copy path",
+        download: "Download",
+        openDrawio: "Open draw.io",
+        sendWhiteboard: "Send to Whiteboard",
+        sendingWhiteboard: "Sending...",
+        sentWhiteboard: "Sent to Whiteboard",
+        noDiagramYet: "Create a diagram first",
+        create: "Create",
+        creating: "Creating...",
+        addToSession: "Add to session",
+        adding: "Adding...",
+        emptyTemplates: "No templates. Run execute.py install or create a new template.",
+        emptyLiveNone: "No active sessions. Ask the agent to create a workspace with pen_paper.",
+        emptyLiveChatOnly: "No sessions for this chat. Turn off 'This chat only' to see sessions from other chats.",
+        emptyLive: "No sessions to show.",
+    },
+};
 
 export const store = createStore("penPaperWorkflows", {
+    uiLang: "he",
     mode: "templates",
     templates: [],
     sessions: [],
@@ -37,6 +176,16 @@ export const store = createStore("penPaperWorkflows", {
     sessionEtag: "",
     sessionStale: false,
     sessionMetadata: null,
+    diagramTypes: DIAGRAM_TYPES,
+    diagramThemes: DIAGRAM_THEMES,
+    diagramType: "flow",
+    diagramTheme: "tech-blue",
+    diagramPath: "",
+    diagramXml: "",
+    diagramSketch: "",
+    diagramMeta: null,
+    sendingWhiteboard: false,
+    generatingDiagram: false,
     userDraft: false,
     content: "",
     description: "",
@@ -57,12 +206,33 @@ export const store = createStore("penPaperWorkflows", {
     async init() {
         if (this._initialized) return;
         this._initialized = true;
+        this.uiLang = this._loadUiLang();
         if (this.mode === "live") {
             await this.refreshSessions();
         } else {
             await this.refreshList();
         }
         this._resetPollTimer();
+    },
+
+    _loadUiLang() {
+        try {
+            const saved = localStorage.getItem("a0_pen_paper.workflow_ui_lang");
+            return saved === "en" ? "en" : "he";
+        } catch (_) {
+            return "he";
+        }
+    },
+
+    t(key) {
+        return UI_TEXT[this.uiLang]?.[key] || UI_TEXT.en[key] || key;
+    },
+
+    toggleUiLang() {
+        this.uiLang = this.uiLang === "en" ? "he" : "en";
+        try {
+            localStorage.setItem("a0_pen_paper.workflow_ui_lang", this.uiLang);
+        } catch (_) {}
     },
 
     _resetPollTimer() {
@@ -82,11 +252,11 @@ export const store = createStore("penPaperWorkflows", {
     async setMode(next) {
         if (next === this.mode) return;
         if (this.mode === "templates" && this.dirty) {
-            const ok = confirm("יש שינויים שלא נשמרו בתבנית. לעבור למצב Live בכל זאת?");
+            const ok = confirm(this.t("dirtyTemplateConfirm"));
             if (!ok) return;
         }
         if (this.mode === "live" && this.userDraft) {
-            const ok = confirm("יש טקסט שלא נוסף לסשן. לעבור לתבניות בכל זאת?");
+            const ok = confirm(this.t("dirtyLiveConfirm"));
             if (!ok) return;
         }
         this.mode = next;
@@ -172,7 +342,7 @@ export const store = createStore("penPaperWorkflows", {
                 }
             }
             if (chatId && this.liveChatOnly && !this.sessions.length && this.sessionTotalCount > 0) {
-                this.status = "סשנים קיימים בצ'אטים אחרים — בטל 'רק צ'אט זה'";
+                this.status = this.t("chatOtherSessions");
             }
         } catch (e) {
             toastFrontendError(String(e.message || e), "Pen & Paper");
@@ -205,7 +375,7 @@ export const store = createStore("penPaperWorkflows", {
 
     async selectSession(name) {
         if (this.userDraft && this.selectedSession && this.selectedSession !== name) {
-            const ok = confirm("יש טקסט שלא נוסף לסשן. לעבור לסשן אחר בכל זאת?");
+            const ok = confirm(this.t("dirtySessionConfirm"));
             if (!ok) return;
         }
         this.selectedSession = name;
@@ -257,10 +427,7 @@ export const store = createStore("penPaperWorkflows", {
             if (r?.error === "stale") {
                 this.sessionStale = true;
                 if (r.current_etag) this.sessionEtag = r.current_etag;
-                toastFrontendWarning(
-                    "הסוכן עדכן את הסשן — רענן ואז הוסף שוב",
-                    "Pen & Paper"
-                );
+                toastFrontendWarning(this.t("staleToast"), "Pen & Paper");
                 await this.loadSessionSection();
                 return;
             }
@@ -269,7 +436,7 @@ export const store = createStore("penPaperWorkflows", {
             this.userDraft = false;
             this.sessionStale = false;
             this.content = "";
-            toastFrontendSuccess("נוסף לסשן", "Pen & Paper");
+            toastFrontendSuccess(this.t("addedToSession"), "Pen & Paper");
             await this.loadSessionSection();
             await this.refreshSessions();
         } catch (e) {
@@ -282,12 +449,12 @@ export const store = createStore("penPaperWorkflows", {
     async copySessionText() {
         const text = this.content || "";
         if (!text) {
-            toastFrontendWarning("אין טקסט להעתקה", "Pen & Paper");
+            toastFrontendWarning(this.t("noTextToCopy"), "Pen & Paper");
             return;
         }
         try {
             await navigator.clipboard.writeText(text);
-            toastFrontendSuccess("הועתק", "Pen & Paper");
+            toastFrontendSuccess(this.t("copied"), "Pen & Paper");
         } catch (e) {
             toastFrontendError(String(e.message || e), "Pen & Paper");
         }
@@ -296,14 +463,105 @@ export const store = createStore("penPaperWorkflows", {
     async openTemplateFromSession() {
         const tpl = this.sessionMetadata?.template;
         if (!tpl) {
-            toastFrontendWarning("לסשן אין תבנית מקושרת", "Pen & Paper");
+            toastFrontendWarning(this.t("noLinkedTemplate"), "Pen & Paper");
             return;
         }
         await this.setMode("templates");
         if (this.templates.some((t) => t.name === tpl)) {
             await this.select(tpl);
         } else {
-            toastFrontendWarning(`תבנית '${tpl}' לא נמצאה`, "Pen & Paper");
+            toastFrontendWarning(`${this.t("templateNotFound")}: ${tpl}`, "Pen & Paper");
+        }
+    },
+
+    async generateDiagram() {
+        const sourceType = this.mode === "live" ? "session" : "template";
+        const sourceId = sourceType === "session" ? this.selectedSession : this.selected;
+        if (!sourceId) {
+            toastFrontendWarning(this.t("noSourceForDiagram"), "Pen & Paper");
+            return;
+        }
+        this.generatingDiagram = true;
+        try {
+            const r = await callJsonApi(`${API}/diagrams_generate`, {
+                source_type: sourceType,
+                source_id: sourceId,
+                diagram_type: this.diagramType,
+                theme: this.diagramTheme,
+            });
+            if (!r?.ok) throw new Error(r?.error || "diagram generation failed");
+            this.diagramPath = r.path || "";
+            this.diagramXml = r.xml || "";
+            this.diagramSketch = r.sketch || "";
+            this.diagramMeta = r;
+            this.status = `Diagram: ${r.nodes || 0} nodes`;
+            toastFrontendSuccess(this.t("diagramCreated"), "Pen & Paper");
+        } catch (e) {
+            toastFrontendError(String(e.message || e), "Pen & Paper");
+        } finally {
+            this.generatingDiagram = false;
+        }
+    },
+
+    async copyDiagramPath() {
+        if (!this.diagramPath) {
+            toastFrontendWarning(this.t("noDiagramYet"), "Pen & Paper");
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(this.diagramPath);
+            toastFrontendSuccess(this.t("copied"), "Pen & Paper");
+        } catch (e) {
+            toastFrontendError(String(e.message || e), "Pen & Paper");
+        }
+    },
+
+    downloadDiagram() {
+        if (!this.diagramXml) {
+            toastFrontendWarning(this.t("noDiagramYet"), "Pen & Paper");
+            return;
+        }
+        const name = (this.diagramPath || "pen-paper-diagram.drawio").split(/[\\/]/).pop();
+        const blob = new Blob([this.diagramXml], { type: "application/xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name || "pen-paper-diagram.drawio";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+
+    openDrawio() {
+        window.open("https://app.diagrams.net/", "_blank", "noopener,noreferrer");
+    },
+
+    async sendDiagramToWhiteboard() {
+        const sourceType = this.mode === "live" ? "session" : "template";
+        const sourceId = sourceType === "session" ? this.selectedSession : this.selected;
+        if (!sourceId) {
+            toastFrontendWarning(this.t("noSourceForDiagram"), "Pen & Paper");
+            return;
+        }
+        this.sendingWhiteboard = true;
+        try {
+            const r = await callJsonApi(`${API}/diagrams_send_whiteboard`, {
+                source_type: sourceType,
+                source_id: sourceId,
+                diagram_type: this.diagramType,
+                theme: this.diagramTheme,
+            });
+            if (!r?.ok) throw new Error(r?.error || "whiteboard bridge failed");
+            toastFrontendSuccess(`${this.t("sentWhiteboard")}: ${r.board_name}`, "Pen & Paper");
+            const rc = typeof Alpine !== "undefined" ? Alpine.store("rightCanvas") : null;
+            if (rc && typeof rc.open === "function") {
+                rc.open("whiteboard");
+            }
+        } catch (e) {
+            toastFrontendError(String(e.message || e), "Pen & Paper");
+        } finally {
+            this.sendingWhiteboard = false;
         }
     },
 
@@ -331,14 +589,14 @@ export const store = createStore("penPaperWorkflows", {
             this.sessionEtag = etag;
             if (this.userDraft) {
                 this.sessionStale = true;
-                this.status = "הסוכן עדכן — רענן או הוסף לסשן";
+                this.status = this.t("agentUpdatedRefresh");
                 await this._renderPreview();
                 return;
             }
             const text = r.session?.text || "";
             if (text !== this.content) {
                 this.content = text;
-                this.status = prevEtag ? "עודכן מהסוכן" : "";
+                this.status = prevEtag ? this.t("agentUpdated") : "";
                 await this._renderPreview();
             }
         } catch (_) {}
@@ -346,7 +604,7 @@ export const store = createStore("penPaperWorkflows", {
 
     async select(name) {
         if (this.dirty && this.selected && this.selected !== name) {
-            const ok = confirm("יש שינויים שלא נשמרו. לעבור לתבנית אחרת בכל זאת?");
+            const ok = confirm(this.t("dirtyTemplateSwitchConfirm"));
             if (!ok) return;
         }
         this.loading = true;
@@ -373,7 +631,7 @@ export const store = createStore("penPaperWorkflows", {
 
     markDirty() {
         this.dirty = true;
-        this.status = "שינויים שלא נשמרו";
+        this.status = this.t("unsavedTemplate");
     },
 
     async onContentInput() {
@@ -428,8 +686,8 @@ export const store = createStore("penPaperWorkflows", {
             if (!r?.ok) throw new Error(r?.error || "save failed");
             this.dirty = false;
             this._snapshot = this._capture();
-            this.status = "נשמר";
-            toastFrontendSuccess(`תבנית '${this.selected}' נשמרה`, "Pen & Paper");
+            this.status = this.t("saved");
+            toastFrontendSuccess(`${this.t("saved")}: ${this.selected}`, "Pen & Paper");
             await this.refreshList();
             const g = await callJsonApi(`${API}/workflows_get`, { template_name: this.selected });
             if (g?.ok) this.serverMtime = g.template?.mtime || 0;
@@ -454,15 +712,15 @@ export const store = createStore("penPaperWorkflows", {
     },
 
     async createNew() {
-        const name = prompt("שם תבנית חדשה (אותיות קטנות, מספרים, קו תחתון):");
+        const name = prompt(this.t("createTemplatePrompt"));
         if (!name) return;
         try {
             const r = await callJsonApi(`${API}/workflows_create`, {
                 template_name: name.trim(),
-                description: "New workflow template",
+                description: this.t("newTemplateDesc"),
             });
             if (!r?.ok) throw new Error(r?.error || "create failed");
-            toastFrontendSuccess(`תבנית '${name}' נוצרה`, "Pen & Paper");
+            toastFrontendSuccess(`${this.t("templateCreated")}: ${name}`, "Pen & Paper");
             await this.refreshList();
             await this.select(name.trim());
         } catch (e) {
@@ -473,16 +731,16 @@ export const store = createStore("penPaperWorkflows", {
     async deleteSelected() {
         if (!this.selected) return;
         if (this.selected === "session") {
-            toastFrontendWarning("לא ניתן למחוק את תבנית session", "Pen & Paper");
+            toastFrontendWarning(this.t("cannotDeleteSession"), "Pen & Paper");
             return;
         }
-        if (!confirm(`למחוק את התבנית '${this.selected}'?`)) return;
+        if (!confirm(`${this.t("deleteTemplateConfirm")} '${this.selected}'?`)) return;
         try {
             const r = await callJsonApi(`${API}/workflows_delete`, {
                 template_name: this.selected,
             });
             if (!r?.ok) throw new Error(r?.error || "delete failed");
-            toastFrontendSuccess(`תבנית '${this.selected}' נמחקה`, "Pen & Paper");
+            toastFrontendSuccess(`${this.t("templateDeleted")}: ${this.selected}`, "Pen & Paper");
             this.selected = "";
             this.content = "";
             await this.refreshList();
@@ -508,7 +766,7 @@ export const store = createStore("penPaperWorkflows", {
                 this.phasesText = (t.phases || []).join(", ");
                 this.triggersText = (t.triggers || []).join(", ");
                 this._snapshot = this._capture();
-                this.status = "עודכן מהסוכן";
+                this.status = this.t("agentUpdated");
                 await this._renderPreview();
             }
         } catch (_) {}
@@ -539,6 +797,6 @@ export const store = createStore("penPaperWorkflows", {
             rc.open("pen_paper_workflows");
             return;
         }
-        toastFrontendWarning("פתח את לוח Canvas מימין ובחר Workflows", "Pen & Paper");
+        toastFrontendWarning(this.t("openCanvasWarning"), "Pen & Paper");
     },
 });
