@@ -27,6 +27,11 @@ VALID_SECTIONS = [
 
 _NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
+# Runtime location for UI-published State-DOX workflow templates, relative to the
+# Pen & Paper runtime base. Single source of truth — workflows_store.state_dox_dir()
+# (PR1b) reuses this constant.
+STATE_DOX_REL = "knowledge/workflows/state_dox"
+
 DEFAULT_SESSION_STATE: dict[str, Any] = {
     "session": {
         "goal": "",
@@ -48,13 +53,16 @@ DEFAULT_SESSION_STATE: dict[str, Any] = {
 
 
 def _abs_runtime(cfg: dict[str, Any] | None = None) -> Path:
+    base = runtime_base(cfg or load_plugin_config())
     try:
         from helpers import files
 
-        base = runtime_base(cfg or load_plugin_config())
         return Path(files.get_abs_path(base))
     except Exception:
-        return Path(runtime_base(cfg or load_plugin_config()))
+        path = Path(base)
+        if path.is_absolute():
+            return path
+        return Path(__file__).resolve().parents[4] / path
 
 
 def sessions_dir(cfg: dict[str, Any] | None = None) -> Path:
@@ -81,6 +89,81 @@ def state_dir(name: str, cfg: dict[str, Any] | None = None) -> Path:
 
 def workflow_templates_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "data" / "workflow_state_templates"
+
+
+def workflow_template_dirs(cfg: dict[str, Any] | None = None) -> list[Path]:
+    """State-DOX template source dirs in merge-precedence order: shipped (built-ins)
+    first, then runtime (UI-published). Returns only dirs that exist.
+
+    Shipped is iterated first so it wins on an id/filename clash (copy-if-absent
+    in ensure_state_files; first-seen-wins in list_state_dox_templates)."""
+    dirs: list[Path] = []
+    shipped = workflow_templates_dir()
+    if shipped.exists():
+        dirs.append(shipped)
+    runtime = _abs_runtime(cfg) / STATE_DOX_REL
+    if runtime.exists():
+        dirs.append(runtime)
+    return dirs
+
+
+def _normalize_state_dox_row(
+    data: Any, source: str, stem: str
+) -> dict[str, Any] | None:
+    if not isinstance(data, dict):
+        return None
+    wf = data.get("workflow") if isinstance(data.get("workflow"), dict) else data
+    scribe = data.get("scribe") if isinstance(data.get("scribe"), dict) else data
+    wf_id = str(wf.get("id") or wf.get("name") or data.get("id") or data.get("name") or stem)
+    raw_tags = wf.get("activation_tags")
+    if raw_tags is None:
+        raw_tags = data.get("activation_tags")
+    if isinstance(raw_tags, list):
+        tags = [str(t) for t in raw_tags]
+    elif isinstance(raw_tags, str):
+        tags = [t.strip() for t in re.split(r"[\s,;]+", raw_tags) if t.strip()]
+    else:
+        tags = []
+    skill = scribe.get("skill") or data.get("skill") or data.get("scribe_skill")
+    return {
+        "id": wf_id,
+        "title": str(wf.get("title") or data.get("description") or wf_id),
+        "activation_tags": tags,
+        "skill": str(skill) if skill else None,
+        "mode": str(scribe.get("mode") or "workflow"),
+        "source": source,
+        "file": f"{wf_id}.yaml",
+    }
+
+
+def list_state_dox_templates(cfg: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Normalized State-DOX workflow templates (shipped + runtime, shipped wins on
+    id clash). Stable cross-plugin contract consumed by a0_scribe; returns plain
+    JSON-serializable dicts. NEVER raises — skips malformed files, [] on failure."""
+    seen: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    try:
+        dirs = workflow_template_dirs(cfg)
+        shipped = workflow_templates_dir()
+    except Exception:
+        return []
+    for directory in dirs:
+        source = "shipped" if directory == shipped else "runtime"
+        try:
+            paths = sorted(directory.glob("*.yaml"))
+        except Exception:
+            continue
+        for path in paths:
+            try:
+                data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            row = _normalize_state_dox_row(data, source, path.stem)
+            if row is None or row["id"] in seen:  # earlier dir (shipped) wins
+                continue
+            seen[row["id"]] = row
+            order.append(row["id"])
+    return [seen[wf_id] for wf_id in order]
 
 
 def file_etag(path: Path) -> str:
@@ -399,9 +482,10 @@ def ensure_state_files(
         events_path.write_text("", encoding="utf-8")
         created.append("events.jsonl")
 
-    templates = workflow_templates_dir()
-    if templates.exists():
-        for template in templates.glob("*.yaml"):
+    # Shipped first, then runtime (UI-published). copy-if-absent: shipped wins on a
+    # name clash, and existing live workflow state is never overwritten.
+    for templates_dir in workflow_template_dirs(cfg):
+        for template in sorted(templates_dir.glob("*.yaml")):
             target = workflows / template.name
             if not target.exists():
                 target.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")

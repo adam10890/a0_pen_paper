@@ -34,8 +34,21 @@ template integration, and archive-oriented task notes.
 - Diagram XML generation helpers live in `helpers/`; Agent-facing diagram
   actions live in `tools/`.
 - Pen & Paper State-DOX templates live under
-  `data/workflow_state_templates/`; live per-session copies belong under the
-  active workspace's runtime `state/` folder.
+  `data/workflow_state_templates/` (shipped built-ins); live per-session copies
+  belong under the active workspace's runtime `state/` folder.
+- UI-published State-DOX templates are runtime data and live under
+  `usr/pen_and_paper/knowledge/workflows/state_dox/` (never in plugin source).
+  `workflows_store.publish_state_dox()` writes them; `sessions_store`
+  (`workflow_template_dirs` / `list_state_dox_templates` / `ensure_state_files`)
+  merges shipped + runtime with shipped winning on id clash. Reserved built-in
+  ids cannot be published. Scribe reads via `list_state_dox_templates()`.
+  Custom `activation_tags` are valid, but Scribe only applies them when an
+  observation emits explicit evidence (`SCRIBE_TAGS:` / `STATE_DOX_TAGS:`) or an
+  exact keyword in non-read-only activity.
+- `list_state_dox_templates()` accepts both canonical nested YAML
+  (`workflow.activation_tags`, `scribe.skill`) and flat runtime YAML
+  (`name`, `activation_tags`, `skill`) so agent-authored template files do not
+  silently lose custom triggers.
 - Each State-DOX workflow template must declare `scribe.skill` pointing to the
   matching `a0_scribe/skills/scribe-workflow-*` capability.
 - `tool_execute_after` focus tracking must read tool metadata from
@@ -59,5 +72,18 @@ template integration, and archive-oriented task notes.
 
 ## Child DOX Index
 
-No child AGENTS.md files yet. Add one under `docs/` or `skills/` if those areas
-gain independent authoring rules.
+- `helpers/AGENTS.md` — sessions, workflows, State-DOX storage, diagrams, and
+  execution helpers.
+- `tools/AGENTS.md` — agent-facing Pen & Paper tools.
+- `api/AGENTS.md` — web/API wrappers for sessions, workflows, publish, and
+  diagrams.
+- `webui/AGENTS.md` — Workflows Canvas and plugin UI surfaces.
+- `skills/AGENTS.md` — agent-facing Pen & Paper skills and references.
+- `docs/AGENTS.md` — capabilities, roadmap, component boundaries, and workflow
+  docs.
+- `data/AGENTS.md` — shipped templates, workflow registries, and State-DOX
+  template fixtures.
+- `prompts/AGENTS.md` — tool prompt guidance.
+- `extensions/AGENTS.md` — Agent Zero hooks and Right Canvas registration.
+- `tests/AGENTS.md` — session state and workflow publish tests.
+- `scripts/AGENTS.md` — setup and verification scripts.

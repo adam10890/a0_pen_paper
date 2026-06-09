@@ -56,6 +56,16 @@ sessions/active/<workspace>/
 the matching `a0_scribe` workflow skill so the background scribe can load the
 right capability guidance.
 
+Workflows published from the UI can define custom `activation_tags`. Scribe
+will apply those tags only when a later observation emits explicit evidence
+such as `SCRIBE_TAGS: tag_name` / `STATE_DOX_TAGS: tag_name`, or when the exact
+tag appears in non-read-only activity. Reading a source file that merely
+contains the tag string is not enough to activate the workflow.
+
+The preferred State-DOX template schema is nested (`workflow.activation_tags`
+and `scribe.skill`), but the reader also accepts flat runtime YAML with `name`,
+`activation_tags`, and `skill` for agent-authored workflow files.
+
 Pen & Paper also maintains a chat focus pointer used by `a0_scribe`. The focus
 extension reads the current tool metadata from `agent.loop_data.current_tool.args`
 when Agent Zero does not pass `tool_args` into `tool_execute_after`.

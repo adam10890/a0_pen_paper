@@ -7,23 +7,41 @@ from __future__ import annotations
 import json
 import re
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
+from usr.plugins.a0_pen_paper.helpers import sessions_store
 from usr.plugins.a0_pen_paper.tools._config import load_plugin_config, runtime_base
 
 _REGISTRY_REL = "knowledge/workflows/template_registry.json"
 _WORKFLOWS_REL = "knowledge/workflows"
 _NAME_RE = re.compile(r"^[a-z0-9_]+$")
+_SKILL_RE = re.compile(r"^[a-z0-9-]+$")
+
+# Advisory mirror of the tags a0_scribe.state_events.normalize_observation emits.
+# Used for warn-only validation; drift here is non-fatal by design.
+KNOWN_ACTIVATION_TAGS = {
+    "research", "search", "file_read",
+    "implementation", "file_change", "code_change",
+    "verification", "test_result", "compile_result",
+    "tool_error", "unexpected_behavior", "test_failure",
+    "planning", "decision_candidate",
+}
 
 
 def _abs_runtime(cfg: dict[str, Any] | None = None) -> Path:
+    base = runtime_base(cfg or load_plugin_config())
     try:
         from helpers import files
-        base = runtime_base(cfg or load_plugin_config())
         return Path(files.get_abs_path(base))
     except Exception:
-        return Path(runtime_base(cfg or load_plugin_config()))
+        path = Path(base)
+        if path.is_absolute():
+            return path
+        return Path(__file__).resolve().parents[4] / path
 
 
 def registry_path(cfg: dict[str, Any] | None = None) -> Path:
@@ -201,6 +219,137 @@ def create_template(
     return {"ok": True, "name": name, "file": wf_file}
 
 
+def state_dox_dir(cfg: dict[str, Any] | None = None) -> Path:
+    """Runtime dir for UI-published State-DOX YAML. Reuses sessions_store.STATE_DOX_REL
+    so the read path (sessions_store.workflow_template_dirs) and the write path agree."""
+    return _abs_runtime(cfg) / sessions_store.STATE_DOX_REL
+
+
+def _reserved_builtin_ids() -> set[str]:
+    """Shipped State-DOX workflow ids (read from Pen & Paper's own data dir — no
+    dependency on a0_scribe). UI templates may share these names as Markdown, but
+    they cannot be published as State-DOX (the shipped template already owns the id)."""
+    try:
+        return {p.stem for p in sessions_store.workflow_templates_dir().glob("*.yaml")}
+    except Exception:
+        return set()
+
+
+def publish_state_dox(
+    name: str,
+    *,
+    activation_tags: list,
+    skill: str | None = None,
+    title: str | None = None,
+    title_he: str | None = None,
+    contract: dict | None = None,
+    state_extra: dict | None = None,
+    cfg: dict[str, Any] | None = None,
+) -> dict:
+    """Write/refresh the Scribe-readable State-DOX YAML for an EXISTING UI template
+    and set its registry scribe_* fields. Idempotent (overwrites the template, not
+    live session copies). Never raises — returns {"ok": ...}."""
+    err = validate_name(name)
+    if err:
+        return {"ok": False, "error": err}
+    reg = _read_registry(cfg)
+    templates = reg.get("templates") or {}
+    if name not in templates:
+        return {"ok": False, "error": f"Template '{name}' not found"}
+    if name in _reserved_builtin_ids():
+        return {
+            "ok": False,
+            "error": f"'{name}' is a built-in State-DOX workflow; it is already active",
+        }
+    if not isinstance(activation_tags, list):
+        return {"ok": False, "error": "activation_tags must be a non-empty list"}
+    tags = [str(t).strip() for t in activation_tags if str(t).strip()]
+    if not tags:
+        return {"ok": False, "error": "activation_tags must be a non-empty list"}
+    if skill is not None and not _SKILL_RE.match(str(skill)):
+        return {"ok": False, "error": "skill must match ^[a-z0-9-]+$"}
+
+    warnings: list[str] = []
+    unknown = [t for t in tags if t not in KNOWN_ACTIVATION_TAGS]
+    if unknown:
+        warnings.append(
+            "Custom activation_tags require explicit Scribe evidence "
+            "(for example SCRIBE_TAGS: <tag>) or a non-read-only activity keyword: "
+            + ", ".join(unknown)
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    entry = dict(templates[name])
+    doc: dict[str, Any] = {
+        "workflow": {
+            "id": name,
+            "title": title or entry.get("description") or name,
+            "activation_tags": tags,
+        },
+        "scribe": {"skill": skill, "mode": "workflow"},
+        "contract": contract or {},
+        "state": {"phase": "inactive", "last_evidence_event": None, **(state_extra or {})},
+        "meta": {
+            "source": "ui",
+            "version": entry.get("version", "1.0.0"),
+            "published_at": now,
+            "registry_name": name,
+        },
+    }
+    if title_he:
+        doc["workflow"]["title_he"] = title_he
+
+    out_dir = state_dox_dir(cfg)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / f"{name}.yaml").write_text(
+        yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+
+    entry["scribe_enabled"] = True
+    entry["activation_tags"] = tags
+    entry["scribe_skill"] = skill
+    entry["state_dox_file"] = f"state_dox/{name}.yaml"
+    entry["published_at"] = now
+    templates[name] = entry
+    reg["templates"] = templates
+    _write_registry(reg, cfg)
+
+    result: dict[str, Any] = {"ok": True, "id": name, "file": f"state_dox/{name}.yaml"}
+    if warnings:
+        result["warnings"] = warnings
+    return result
+
+
+def unpublish_state_dox(name: str, cfg: dict[str, Any] | None = None) -> dict:
+    """Remove <name>.yaml from the runtime State-DOX dir and clear the registry
+    scribe_* fields. Idempotent."""
+    err = validate_name(name)
+    if err:
+        return {"ok": False, "error": err}
+    path = state_dox_dir(cfg) / f"{name}.yaml"
+    try:
+        if path.exists():
+            path.unlink()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    reg = _read_registry(cfg)
+    templates = reg.get("templates") or {}
+    if name in templates:
+        entry = dict(templates[name])
+        for field in (
+            "scribe_enabled",
+            "activation_tags",
+            "scribe_skill",
+            "state_dox_file",
+            "published_at",
+        ):
+            entry.pop(field, None)
+        templates[name] = entry
+        reg["templates"] = templates
+        _write_registry(reg, cfg)
+    return {"ok": True, "id": name}
+
+
 def delete_template(name: str, cfg: dict[str, Any] | None = None) -> dict:
     err = validate_name(name)
     if err:
@@ -220,4 +369,11 @@ def delete_template(name: str, cfg: dict[str, Any] | None = None) -> dict:
         archive = _abs_runtime(cfg) / "_archived/templates"
         archive.mkdir(parents=True, exist_ok=True)
         shutil.move(str(src), str(archive / wf_file))
+    # Remove any published State-DOX template so it stops activating in Scribe.
+    sdx = state_dox_dir(cfg) / f"{name}.yaml"
+    if sdx.exists():
+        try:
+            sdx.unlink()
+        except Exception:
+            pass
     return {"ok": True, "name": name}

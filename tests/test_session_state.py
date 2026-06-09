@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import unittest
 import importlib.util
 import types
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -133,6 +135,171 @@ class SessionStateTests(unittest.TestCase):
         args = module._effective_tool_args(None, FakeAgent())
 
         self.assertEqual(args["name"], "scribe_semantic_regression_003")
+
+
+class StateDoxReadPathTests(unittest.TestCase):
+    """PR1a: runtime State-DOX template discovery + merge (no publish path yet)."""
+
+    _RUNTIME_REL = ("knowledge", "workflows", "state_dox")
+    _CODE_REVIEW = (
+        "workflow:\n"
+        "  id: code_review\n"
+        "  title: Code Review\n"
+        "  activation_tags: [implementation, file_change]\n"
+        "scribe:\n"
+        "  skill: scribe-core\n"
+        "  mode: workflow\n"
+        "state:\n"
+        "  phase: inactive\n"
+        "  last_evidence_event: null\n"
+    )
+
+    def _state_dox(self, root: Path) -> Path:
+        return root.joinpath("pen_and_paper", *self._RUNTIME_REL)
+
+    @contextmanager
+    def _cwd(self, path: Path):
+        old = os.getcwd()
+        os.chdir(path)
+        try:
+            yield
+        finally:
+            os.chdir(old)
+
+    def test_relative_runtime_dir_resolves_from_agent_zero_root_not_cwd(self):
+        with TemporaryDirectory() as td:
+            with self._cwd(Path(td)):
+                base = sessions_store._abs_runtime({"runtime_dir": "usr/pen_and_paper"})
+
+        self.assertEqual(base, ROOT / "usr" / "pen_and_paper")
+
+    def test_workflow_template_dirs_shipped_first_runtime_when_present(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cfg = {"runtime_dir": str(root / "pen_and_paper")}
+            shipped = sessions_store.workflow_templates_dir()
+
+            dirs = sessions_store.workflow_template_dirs(cfg=cfg)
+            self.assertEqual(dirs[0], shipped)
+            self.assertNotIn(self._state_dox(root), dirs)  # runtime absent
+
+            self._state_dox(root).mkdir(parents=True)
+            dirs2 = sessions_store.workflow_template_dirs(cfg=cfg)
+            self.assertEqual(dirs2[0], shipped)
+            self.assertIn(self._state_dox(root), dirs2)
+
+    def test_list_state_dox_templates_returns_builtins_with_shape(self):
+        with TemporaryDirectory() as td:
+            cfg = {"runtime_dir": str(Path(td) / "pen_and_paper")}
+            rows = sessions_store.list_state_dox_templates(cfg=cfg)
+            by_id = {r["id"]: r for r in rows}
+            self.assertEqual(
+                set(by_id),
+                {"planning", "implementation", "debugging", "verification", "research"},
+            )
+            deb = by_id["debugging"]
+            self.assertEqual(deb["skill"], "scribe-workflow-debugging")
+            self.assertEqual(deb["source"], "shipped")
+            self.assertEqual(deb["file"], "debugging.yaml")
+            self.assertIsInstance(deb["activation_tags"], list)
+            self.assertIn("tool_error", deb["activation_tags"])
+
+    def test_list_state_dox_templates_merges_runtime_and_shipped_wins(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cfg = {"runtime_dir": str(root / "pen_and_paper")}
+            rt = self._state_dox(root)
+            rt.mkdir(parents=True)
+            (rt / "code_review.yaml").write_text(self._CODE_REVIEW, encoding="utf-8")
+            # Runtime tries to shadow a shipped id; shipped must win.
+            (rt / "debugging.yaml").write_text(
+                "workflow:\n  id: debugging\n  title: HIJACK\n"
+                "  activation_tags: [research]\n"
+                "scribe:\n  skill: evil\n  mode: workflow\n"
+                "state:\n  phase: inactive\n",
+                encoding="utf-8",
+            )
+            by_id = {r["id"]: r for r in sessions_store.list_state_dox_templates(cfg=cfg)}
+            self.assertIn("code_review", by_id)
+            self.assertEqual(by_id["code_review"]["source"], "runtime")
+            self.assertEqual(by_id["code_review"]["skill"], "scribe-core")
+            self.assertEqual(by_id["debugging"]["skill"], "scribe-workflow-debugging")
+            self.assertEqual(by_id["debugging"]["source"], "shipped")
+
+    def test_list_state_dox_templates_accepts_flat_runtime_yaml(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cfg = {"runtime_dir": str(root / "pen_and_paper")}
+            rt = self._state_dox(root)
+            rt.mkdir(parents=True)
+            (rt / "code_review_runtime.yaml").write_text(
+                "name: code_review_runtime\n"
+                "activation_tags:\n"
+                "  - code_review_trigger\n"
+                "skill: scribe-workflow-code-review-missing\n"
+                "description: Regression test\n",
+                encoding="utf-8",
+            )
+
+            rows = {r["id"]: r for r in sessions_store.list_state_dox_templates(cfg=cfg)}
+
+            self.assertIn("code_review_runtime", rows)
+            self.assertEqual(
+                rows["code_review_runtime"]["activation_tags"], ["code_review_trigger"]
+            )
+            self.assertEqual(
+                rows["code_review_runtime"]["skill"],
+                "scribe-workflow-code-review-missing",
+            )
+
+    def test_list_state_dox_templates_skips_malformed_and_never_raises(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cfg = {"runtime_dir": str(root / "pen_and_paper")}
+            rt = self._state_dox(root)
+            rt.mkdir(parents=True)
+            (rt / "broken.yaml").write_text(": : not valid : :\n[unclosed", encoding="utf-8")
+            rows = sessions_store.list_state_dox_templates(cfg=cfg)
+            ids = {r["id"] for r in rows}
+            self.assertNotIn("broken", ids)
+            self.assertIn("debugging", ids)
+
+    def test_ensure_state_files_copies_runtime_template_into_session(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cfg = {"runtime_dir": str(root / "pen_and_paper")}
+            rt = self._state_dox(root)
+            rt.mkdir(parents=True)
+            (rt / "code_review.yaml").write_text(self._CODE_REVIEW, encoding="utf-8")
+
+            sessions_store.ensure_state_files("demo", "chat-1", cfg=cfg)
+
+            wf = (
+                root / "pen_and_paper" / "sessions" / "active" / "demo" / "state" / "workflows"
+            )
+            self.assertTrue((wf / "code_review.yaml").exists())  # runtime copied
+            self.assertTrue((wf / "debugging.yaml").exists())  # shipped still copied
+
+    def test_ensure_state_files_does_not_overwrite_existing_live_workflow(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cfg = {"runtime_dir": str(root / "pen_and_paper")}
+            sessions_store.ensure_state_files("demo", "chat-1", cfg=cfg)
+            live = (
+                root
+                / "pen_and_paper"
+                / "sessions"
+                / "active"
+                / "demo"
+                / "state"
+                / "workflows"
+                / "debugging.yaml"
+            )
+            live.write_text("LIVE-EDITED", encoding="utf-8")
+
+            sessions_store.ensure_state_files("demo", "chat-1", cfg=cfg)
+
+            self.assertEqual(live.read_text(encoding="utf-8"), "LIVE-EDITED")
 
 
 if __name__ == "__main__":

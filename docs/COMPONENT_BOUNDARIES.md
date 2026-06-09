@@ -10,6 +10,7 @@ This plugin now marks capabilities by ownership:
 | `pen_paper_diagram` | local | Pen & Paper | Generates `.drawio` artifacts from templates/sessions/text |
 | `diagrams_send_whiteboard` | bridge | Pen & Paper ↔ Whiteboard | Creates a whiteboard annotation copy from the same diagram model |
 | `a0_scribe` State bridge | bridge | Scribe ↔ Pen & Paper | Scribe owns event semantics; Pen & Paper owns durable workspace storage |
+| State-DOX publish contract | bridge | Pen & Paper → Scribe | Pen & Paper writes runtime State-DOX YAML to `knowledge/workflows/state_dox/` (`workflows_store.publish_state_dox`); Scribe reads it via `sessions_store.list_state_dox_templates()`. Pen & Paper owns the YAML + registry; Scribe owns activation_tags semantics + skill resolution. Custom tags require explicit Scribe evidence (`SCRIBE_TAGS:` / `STATE_DOX_TAGS:`) or exact non-read-only activity keywords. The reader accepts canonical nested YAML and flat agent-authored YAML |
 | Workflows Canvas | local UI with bridges | Pen & Paper | Owns template/session editing; exposes optional diagram and whiteboard bridge actions |
 
 ## Rule
