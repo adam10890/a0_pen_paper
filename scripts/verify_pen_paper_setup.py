@@ -200,13 +200,12 @@ def check_runtime_registry() -> bool:
 def check_skills() -> bool:
     skills = [
         PLUGIN_DIR / "skills" / "pen-and-paper" / "SKILL.md",
-        PLUGIN_DIR / "skills" / "pen-paper-workflows" / "SKILL.md",
         PLUGIN_DIR / "skills" / "pen-and-paper-workflow" / "SKILL.md",
     ]
     missing = [s.parent.name for s in skills if not s.exists()]
     if missing:
         return _fail("skills", f"missing {missing}")
-    return _ok("skills", "pen-and-paper, pen-paper-workflows, pen-and-paper-workflow")
+    return _ok("skills", "pen-and-paper, pen-and-paper-workflow")
 
 
 def check_sessions_api() -> bool:

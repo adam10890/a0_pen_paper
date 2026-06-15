@@ -19,7 +19,7 @@
 | Source | Copy to Cursor? | Notes |
 |--------|-----------------|-------|
 | `skills/pen-and-paper/SKILL.md` | Yes (abbreviated) | Remove `pen_paper` dependency if the tool is unavailable |
-| `skills/pen-paper-workflows/SKILL.md` | Yes for template editing | Fix API paths to `/plugins/...` only if A0 server exists |
+| `skills/pen-and-paper-workflow/SKILL.md` + `references/template-authoring.md` | Yes — covers both execution and template editing | Fix API paths to `/plugins/...` only if A0 server exists |
 | `knowledge/workflows/*.md` | Yes as helper files | Or embed in SKILL |
 | `template_registry.json` | Yes (read-only ref) | Cursor does not run Canvas |
 | `rules.yaml` execution_contract | Yes as SKILL rules | After Wave 2 — use status `done` |
