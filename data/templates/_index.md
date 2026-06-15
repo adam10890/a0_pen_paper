@@ -41,7 +41,7 @@ Each entry: `path — one-line summary — when to read`.
 - `skills/pen-and-paper/references/philosophy.md` — why this system exists — first time you use the plugin or when something feels wrong.
 - `skills/pen-and-paper/references/session-management.md` — lifecycle, cleanup, split, archive — when a session is getting unwieldy.
 - `skills/pen-and-paper/references/vectorizer.md` — how `vectorize=true` works at close — when deciding what to vectorise.
-- `skills/pen-and-paper/references/plugin-packaging.md` — internals — only when modifying the plugin itself.
+- `skills/pen-and-paper-workflow/references/template-authoring.md` — CRUD + Canvas + co-design for workflow templates — only when authoring/editing templates.
 
 ### Documentation (admin / human-facing)
 

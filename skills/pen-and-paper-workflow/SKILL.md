@@ -1,36 +1,53 @@
 ---
 name: pen-and-paper-workflow
 description: >
-  Deterministic workflow execution using Pen & Paper as runtime state and Workflow
-  Dashboard as policy controller. Use for multi-step planning, research, debugging,
-  audit, or state tracking.
-version: 1.0.0
+  Deterministic workflow execution and template authoring for Pen & Paper. Use for
+  multi-step planning, research, debugging, audit, state tracking, or editing the
+  workflow templates that the agent and Canvas share.
+version: 2.0.0
 author: frantz
-tags: [pen-paper, workflow, deterministic, sessions]
+tags: [pen-paper, workflow, deterministic, sessions, templates, canvas]
 trigger_patterns:
   - "plan"
   - "analyze"
   - "audit"
   - "debug"
   - "research"
-  - "structured thinking"
-  - "pen and paper"
+  - "workflow template"
+  - "edit workflow"
+  - "template_registry"
+  - "knowledge/workflows"
+  - "create_template"
+  - "edit_template"
+  - "use_template"
+  - "phases triggers"
+  - "Canvas workflows"
+  - "build workflow"
+  - "co-design workflow"
+  - "stop_no_change"
+  - "iterative workflow"
 priority: 2
 ---
 
-# Pen & Paper Workflow Skill
+# Pen & Paper Workflow Skill (HOW)
+
+> **Routing.** Foundational rules and lifecycle → [`pen-and-paper`](../pen-and-paper/SKILL.md).
+> Deterministic multi-step execution and template authoring → this skill.
 
 ## Purpose
 
-Use Pen & Paper only as a **runtime workspace** for multi-step work. Do not treat it as the policy engine — templates and registry live in the Workflow Dashboard.
+Use Pen & Paper only as a **runtime workspace** for multi-step work. Do not treat
+it as the policy engine — templates and registry live in the Workflow Dashboard.
 
 ## Activation Rules
 
-Use when the task requires more than 3 steps, multiple tools, planning, debugging, audit, research, or state tracking.
+Use when the task requires more than 3 steps, multiple tools, planning, debugging,
+audit, research, state tracking, **or editing a workflow template** (the same skill
+covers both running and authoring — the contract is the same).
 
 Do **not** use for simple one-shot answers.
 
-## Required Sequence
+## Required Sequence (execution)
 
 1. Identify task type: planning, research, debugging, audit, implementation, validation.
 2. **`skills_tool:load`** the required domain skill (or this skill) **before** creating a Pen & Paper session.
@@ -62,4 +79,21 @@ Final response must include:
 
 ## Promotion Rule
 
-Promote to a dedicated skill only after at least two successful runs and one documented test matrix (`workflow_to_skill` template).
+Promote to a dedicated skill only after at least two successful runs and one
+documented test matrix (`workflow_to_skill` template).
+
+## Template Authoring
+
+When the task is to create, edit, or manage workflow templates (the same files
+edited in the Canvas UI), follow [`references/template-authoring.md`](references/template-authoring.md).
+That page covers `create_template` / `edit_template` / `delete_template` /
+`use_template`, the `template_registry.json` shape, the co-design protocol, the
+iterative-improvement stop gate, and the optional wiki-template path.
+
+## References
+
+- [Template authoring (CRUD + Canvas + co-design)](references/template-authoring.md)
+- [Starter workflow template](references/workflow-template.md)
+- [Registry & file layout](references/workflow-registry.md)
+- Foundational skill: [`pen-and-paper`](../pen-and-paper/SKILL.md)
+- Machine-readable rules: [`data/config/rules.yaml`](../../data/config/rules.yaml) (`execution_contract`)

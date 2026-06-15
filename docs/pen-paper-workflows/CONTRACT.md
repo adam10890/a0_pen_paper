@@ -127,7 +127,7 @@ sequenceDiagram
 
 For every promoted workflow:
 
-1. `skills_tool:load` → dedicated skill (or `pen-paper-workflows` for editing)
+1. `skills_tool:load` → dedicated skill (or `pen-and-paper-workflow` for editing — template authoring lives under its `references/template-authoring.md`)
 2. `pen_paper` → `list_templates` (if name unknown)
 3. `pen_paper` → `use_template` with explicit `variables`
 4. Per phase: `pen_paper` → `update` to the defined section **before** marking the phase complete in notes

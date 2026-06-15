@@ -1,14 +1,17 @@
 ---
 name: pen-and-paper
 description: Structured thinking workflow using virtual pen & paper sessions. Helps agent think step-by-step with persistent, searchable sessions. Use for complex reasoning, planning, or problem decomposition.
-version: 1.1.0
+version: 1.2.0
 author: Adam
 tags: [thinking, methodology, workflow, planning, reasoning, sessions]
-trigger_patterns: ["pen and paper", "pen paper", "think step by step", "structured thinking", "session", "עט ונייר", "חשיבה מובנית"]
-priority: 2
+trigger_patterns: ["pen and paper", "pen paper", "structured thinking", "עט ונייר", "חשיבה מובנית"]
+priority: 1
 ---
 
-# Pen & Paper (Pure Skill)
+# Pen & Paper (Pure Skill — WHAT / WHY)
+
+> **Routing.** Foundational rules → this skill. Deterministic multi-step
+> execution and template authoring → [`pen-and-paper-workflow`](../pen-and-paper-workflow/SKILL.md).
 
 ## First thing — always
 
@@ -55,10 +58,25 @@ Never duplicate the same fact in both.
 4. **Backtrack**: keep a list of things to return to.
 5. **Close & vectorize**: complete the session with `action: close` (vectorize when useful).
 
+## Deterministic execution (briefly)
+
+For multi-step work that must behave the same way under every model, the
+deterministic policy lives in [`pen-and-paper-workflow/SKILL.md`](../pen-and-paper-workflow/SKILL.md).
+The contract you must respect even at this foundational layer:
+
+- Use **only** the `pen_paper` `VALID_SECTIONS`: `findings`, `results`, `insights`,
+  `notes`, `decisions`, `backtrack`, `execution_log`. Do not invent section names.
+- For step tracking, use the `execution_log` section with a JSON object:
+  `{"step_id": "...", "status": "pending|running|done|failed|skipped"}`.
+  **Never use `COMPLETED`** — `done` is the only success status.
+- The full machine-readable rules (idempotency, status enum, ownership) live in
+  [`data/config/rules.yaml`](../../data/config/rules.yaml) under `execution_contract`.
+
 ## References
 
 - [`_start_here.md`](../../data/templates/_start_here.md) — operating instructions (**read first**)
 - [`_index.md`](../../data/templates/_index.md) — catalog of all pages
 - [Philosophy & Core Principles](references/philosophy.md)
 - [Session Management](references/session-management.md)
-- [Pen & Paper Workflow (deterministic)](../../pen-and-paper-workflow/SKILL.md)
+- [Vectorizer (what `vectorize=true` saves)](references/vectorizer.md)
+- [Pen & Paper Workflow (deterministic execution + template authoring)](../pen-and-paper-workflow/SKILL.md)
