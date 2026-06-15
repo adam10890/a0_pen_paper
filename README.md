@@ -29,6 +29,7 @@ This keeps plugin removal and upgrades safer.
 ## Included
 
 - Agent tool: `pen_paper`
+- Agent tool: `pen_paper_diagram` for editable `.drawio` workflow diagrams
 - Optional vector helper with graceful fallback
 - Prompt guidance for the tool
 - Skill documentation under `skills/pen-and-paper`
@@ -57,6 +58,15 @@ This keeps plugin removal and upgrades safer.
 ```json
 {"tool_name":"pen_paper","tool_args":{"action":"close","name":"my_task","vectorize":true}}
 ```
+
+Generate an editable draw.io diagram from a workflow template:
+
+```json
+{"tool_name":"pen_paper_diagram","tool_args":{"source_type":"template","template_name":"debugging","diagram_type":"flow-vertical"}}
+```
+
+The Workflows Canvas can preview the generated sketch, download the `.drawio`
+file, open diagrams.net, or send an annotation copy to `a0_whiteboard`.
 
 ## Optional Scribe Agent
 

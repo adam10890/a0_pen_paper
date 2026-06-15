@@ -32,6 +32,7 @@ python usr/plugins/a0_pen_paper/scripts/verify_pen_paper_setup.py
 | [WAVE2_SPEC.md](WAVE2_SPEC.md) | execution_log + schema + promotion |
 | [WAVE3_SPEC.md](WAVE3_SPEC.md) | Orchestrator — option A (P&P executor) |
 | [LIVE_SESSION_VIEW_SPEC.md](LIVE_SESSION_VIEW_SPEC.md) | **Live view** — see/copy/edit agent session from Workflows Canvas (Wave 4) |
+| [FLOWFORGE_INTEGRATION.md](FLOWFORGE_INTEGRATION.md) | FlowForge-style `.drawio` diagram exporter for templates and sessions |
 
 ## Recommended execution order
 

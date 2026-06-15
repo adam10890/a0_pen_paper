@@ -1,6 +1,6 @@
 # Pen & Paper Plugin - Capabilities and Roadmap
 
-## Current Capabilities (v1.1.2)
+## Current Capabilities (v1.3.0)
 
 ### Core Features
 
@@ -11,6 +11,22 @@
 - **Template Registry**: JSON-based template registry with triggers and workflow hooks
 - **Multilingual Support**: Template descriptions in English and Hebrew
 - **LLM Wiki Integration**: Read-only discovery and loading of wiki pages tagged as Pen & Paper templates from the LLM Wiki SharedBrain vault
+- **Diagram Export**: `pen_paper_diagram` generates editable `.drawio` artifacts from workflow templates, active sessions, or ad hoc text
+- **Whiteboard Bridge**: Workflows Canvas can send a generated diagram as annotation-ready `a0_whiteboard` shapes
+- **Bilingual Workflow Dashboard**: Workflows Canvas includes a small Hebrew/English toggle persisted in browser local storage
+
+### Diagram Export (New in v1.3.0)
+
+- **Tool**: `pen_paper_diagram`
+- **Sources**: `template`, `session`, `text`
+- **Diagram Types**: `flow`, `flow-vertical`, `layers`, `sequence`, `timeline`
+- **Themes**: `tech-blue`, `morandi`, `mint`, `terracotta`, `indigo`
+- **Runtime Storage**:
+  - Template diagrams: `usr/pen_and_paper/diagrams/templates/<template>/`
+  - Session diagrams: `usr/pen_and_paper/sessions/active/<session>/diagrams/`
+  - Ad hoc diagrams: `usr/pen_and_paper/diagrams/ad_hoc/`
+- **Boundary**: Exports draw.io XML artifacts; it does not write or replace whiteboard state
+- **Bridge**: `diagrams_send_whiteboard` creates a derived whiteboard board; Pen & Paper remains source of truth
 
 ### LLM Wiki Integration (New in v1.1.2)
 
@@ -50,14 +66,14 @@ The following features from the legacy plugin are deferred to future versions:
 - Add context loader integration
 - Implement Scribe for automated documentation
 
-### v1.3.0 (Future)
+### v1.4.0 (Future)
 
-- Add WebUI for workspace visualization
+- Add WebUI diagram buttons for template/session visualization
 - Enhanced template management
 - Workflow automation improvements
 
 ## Compatibility
 
-- **Agent Zero Version**: v1.12+
+- **Agent Zero Version**: v1.19 current local target; designed to remain compatible with v1.12+ plugin conventions
 - **Python Dependencies**: Framework-provided (simpleeval, yaml)
 - **Activation Semantics**: Follows v1.12 file-based activation rules

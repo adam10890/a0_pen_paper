@@ -43,6 +43,8 @@ def create_runtime_structure():
         "config",
         "templates",
         "knowledge/workflows",
+        "diagrams/templates",
+        "diagrams/ad_hoc",
         "vectors",
         "_archived/templates",
         ".ui",
@@ -154,6 +156,7 @@ def run_validate():
         ("plugin.yaml", plugin_dir / "plugin.yaml"),
         ("hooks.py", plugin_dir / "hooks.py"),
         ("tools/pen_paper.py", plugin_dir / "tools/pen_paper.py"),
+        ("tools/pen_paper_diagram.py", plugin_dir / "tools/pen_paper_diagram.py"),
         ("data/config/onboarding.yaml", plugin_dir / "data/config/onboarding.yaml"),
     ]
     
