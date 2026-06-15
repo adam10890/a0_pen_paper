@@ -34,14 +34,21 @@ KNOWN_ACTIVATION_TAGS = {
 
 def _abs_runtime(cfg: dict[str, Any] | None = None) -> Path:
     base = runtime_base(cfg or load_plugin_config())
+    path = Path(base)
+    if path.is_absolute():
+        return path
+    plugin_dir = Path(__file__).resolve().parents[1]
+    live_agent_root = None
+    if plugin_dir.parent.name == "plugins" and plugin_dir.parent.parent.name == "usr":
+        live_agent_root = plugin_dir.parent.parent.parent
     try:
         from helpers import files
-        return Path(files.get_abs_path(base))
+
+        if live_agent_root is not None:
+            return Path(files.get_abs_path(base))
     except Exception:
-        path = Path(base)
-        if path.is_absolute():
-            return path
-        return Path(__file__).resolve().parents[4] / path
+        pass
+    return (live_agent_root or plugin_dir) / path
 
 
 def registry_path(cfg: dict[str, Any] | None = None) -> Path:

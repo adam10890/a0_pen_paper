@@ -12,9 +12,29 @@ from tempfile import TemporaryDirectory
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[4]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+PLUGIN_DIR = Path(__file__).resolve().parents[1]
+if PLUGIN_DIR.parent.name == "plugins" and PLUGIN_DIR.parent.parent.name == "usr":
+    ROOT = PLUGIN_DIR.parent.parent.parent
+else:
+    ROOT = PLUGIN_DIR
+for path in (ROOT, PLUGIN_DIR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+
+def _install_standalone_package_alias() -> None:
+    if "usr.plugins.a0_pen_paper" in sys.modules:
+        return
+    usr = sys.modules.setdefault("usr", types.ModuleType("usr"))
+    plugins = sys.modules.setdefault("usr.plugins", types.ModuleType("usr.plugins"))
+    pkg = types.ModuleType("usr.plugins.a0_pen_paper")
+    pkg.__path__ = [str(PLUGIN_DIR)]
+    setattr(usr, "plugins", plugins)
+    setattr(plugins, "a0_pen_paper", pkg)
+    sys.modules["usr.plugins.a0_pen_paper"] = pkg
+
+
+_install_standalone_package_alias()
 
 from usr.plugins.a0_pen_paper.helpers import sessions_store
 
@@ -104,10 +124,7 @@ class SessionStateTests(unittest.TestCase):
 
     def test_pen_paper_focus_reads_current_tool_args_when_extension_args_are_missing(self):
         focus_path = (
-            ROOT
-            / "usr"
-            / "plugins"
-            / "a0_pen_paper"
+            PLUGIN_DIR
             / "extensions"
             / "python"
             / "tool_execute_after"

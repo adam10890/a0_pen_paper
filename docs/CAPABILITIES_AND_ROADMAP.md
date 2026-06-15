@@ -87,9 +87,9 @@ The following features from the legacy plugin are deferred to future versions:
 - Add a small State-DOX inspector to the Workflows Canvas
 - Improve session focus visibility and stale-focus diagnostics
 
-### Future
+### v1.4.0 (Future)
 
-- Add WebUI diagram buttons for template/session visualization
+- Improve WebUI diagram controls for template/session visualization
 - Enhanced template management
 - Workflow automation improvements
 - Optional recovery UI for malformed or stale State-DOX files
