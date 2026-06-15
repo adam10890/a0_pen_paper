@@ -421,80 +421,59 @@ class PenPaper(Tool):
 
     async def _create_template(self, template_name, description, description_he,
                                 phases, triggers, triggers_he, template_content) -> Response:
-        """Create a new template with MD file and registry entry."""
-        registry = self._load_template_registry()
-        if template_name in registry:
-            return Response(message=f"Template '{template_name}' already exists.", break_loop=False)
-        if not template_content:
-            sections = []
-            for i, phase in enumerate(phases, 1):
-                sections.append(f"## Phase {i}: {phase}\n\n### Notes:\n- \n")
-            template_content = f"# {template_name.replace('_', ' ').title()} Workflow\n"
-            template_content += f"## Overview\n{description}\n\n---\n\n"
-            template_content += "\n---\n\n".join(sections)
-        template_file = f"{template_name}.md"
-        template_path = files.get_abs_path(f"usr/pen_and_paper/knowledge/workflows/{template_file}")
-        try:
-            files.write_file(template_path, template_content)
-        except Exception as e:
-            return Response(message=f"Failed to create file: {e}", break_loop=False)
-        all_triggers = triggers + triggers_he
-        registry[template_name] = {
-            "file": template_file, "description": description,
-            "description_he": description_he, "phases": phases, "triggers": all_triggers
-        }
-        full_registry = self._load_full_registry()
-        full_registry["templates"] = registry
-        registry_path = files.get_abs_path(self.TEMPLATE_REGISTRY_PATH)
-        files.write_file(registry_path, json.dumps(full_registry, indent=2, ensure_ascii=False))
-        phase_str = " > ".join(phases)
+        """Create a new template. Delegates file + registry I/O to workflows_store."""
+        from usr.plugins.a0_pen_paper.helpers import workflows_store
+        all_triggers = (triggers or []) + (triggers_he or [])
+        result = workflows_store.create_template(
+            name=template_name,
+            content=template_content or "",
+            description=description or "",
+            description_he=description_he or "",
+            phases=phases or ["Plan", "Work", "Review"],
+            triggers=all_triggers,
+        )
+        if not result.get("ok"):
+            return Response(message=f"Failed: {result.get('error', 'unknown')}", break_loop=False)
+        phase_str = " > ".join(phases or [])
         trig_str = ", ".join(all_triggers[:8])
-        return Response(message=f"Template '{template_name}' created! Phases: {phase_str}. Triggers: {trig_str}", break_loop=False)
+        return Response(
+            message=f"Template '{template_name}' created! Phases: {phase_str}. Triggers: {trig_str}",
+            break_loop=False,
+        )
 
     async def _edit_template(self, template_name, updates) -> Response:
-        """Edit template metadata and/or content."""
-        registry = self._load_template_registry()
-        if template_name not in registry:
+        """Edit template metadata and/or content. Delegates to workflows_store."""
+        from usr.plugins.a0_pen_paper.helpers import workflows_store
+        existing = workflows_store.get_template(template_name)
+        if not existing:
             return Response(message=f"Template '{template_name}' not found.", break_loop=False)
-        changes = []
-        for field in ["description", "description_he", "phases", "triggers"]:
-            if field in updates:
-                registry[template_name][field] = updates[field]
-                changes.append(f"Updated {field}")
+        # workflows_store.save_template writes the body file every call, so pass
+        # the existing body if the caller did not include "content" in updates.
+        body = updates["content"] if "content" in updates else (existing.get("content") or "")
+        metadata = {k: updates[k] for k in ("description", "description_he", "phases", "triggers") if k in updates}
+        result = workflows_store.save_template(name=template_name, content=body, metadata=metadata)
+        if not result.get("ok"):
+            return Response(message=f"Failed: {result.get('error', 'unknown')}", break_loop=False)
+        changes = [f"Updated {k}" for k in metadata.keys()]
         if "content" in updates:
-            tf = registry[template_name].get("file", f"{template_name}.md")
-            tp = files.get_abs_path(f"usr/pen_and_paper/knowledge/workflows/{tf}")
-            try:
-                files.write_file(tp, updates["content"])
-                changes.append("Updated content")
-            except Exception as e:
-                return Response(message=f"Failed: {e}", break_loop=False)
-        if changes:
-            full_registry = self._load_full_registry()
-            full_registry["templates"] = registry
-            rp = files.get_abs_path(self.TEMPLATE_REGISTRY_PATH)
-            files.write_file(rp, json.dumps(full_registry, indent=2, ensure_ascii=False))
+            changes.append("Updated content")
         chg = ", ".join(changes) if changes else "No changes"
-        return Response(message=f"Template '{template_name}' updated: {chg}", break_loop=False)
+        warn = ""
+        if result.get("warnings"):
+            warn = f"\n\n⚠️ Registry integrity warnings: {'; '.join(result['warnings'])}"
+        return Response(message=f"Template '{template_name}' updated: {chg}{warn}", break_loop=False)
 
     async def _delete_template(self, template_name) -> Response:
-        """Delete template (archive file, remove from registry)."""
-        registry = self._load_template_registry()
-        if template_name not in registry:
-            return Response(message=f"Template '{template_name}' not found.", break_loop=False)
-        tf = registry[template_name].get("file", f"{template_name}.md")
-        tp = files.get_abs_path(f"usr/pen_and_paper/knowledge/workflows/{tf}")
-        del registry[template_name]
-        full_registry = self._load_full_registry()
-        full_registry["templates"] = registry
-        rp = files.get_abs_path(self.TEMPLATE_REGISTRY_PATH)
-        files.write_file(rp, json.dumps(full_registry, indent=2, ensure_ascii=False))
-        if Path(tp).exists():
-            archive_dir = files.get_abs_path("usr/pen_and_paper/_archived/templates")
-            Path(archive_dir).mkdir(parents=True, exist_ok=True)
-            import shutil
-            shutil.move(tp, str(Path(archive_dir) / tf))
-        return Response(message=f"Template '{template_name}' deleted (archived). Remaining: {len(registry)}", break_loop=False)
+        """Delete template (archive file, remove from registry). Delegates to workflows_store."""
+        from usr.plugins.a0_pen_paper.helpers import workflows_store
+        result = workflows_store.delete_template(template_name)
+        if not result.get("ok"):
+            return Response(message=result.get("error", f"Template '{template_name}' not found."), break_loop=False)
+        remaining = len((workflows_store.list_templates() or {}).get("templates") or {})
+        return Response(
+            message=f"Template '{template_name}' deleted (archived). Remaining: {remaining}",
+            break_loop=False,
+        )
 
     async def _use_template(self, template_name, workspace_name, variables=None) -> Response:
         """Create workspace from template with optional variable substitution."""
@@ -638,81 +617,12 @@ class PenPaper(Tool):
 
         files.write_file(workspace_file, json.dumps(workspace, indent=2))
 
-        
-
-        # Create README
-
-        readme_content = f"""# Pen & Paper: {name}
-
+        # Per-workspace README dropped: canonical operating instructions live in
+        # data/templates/_start_here.md, so a per-session copy is redundant and
+        # ages out of sync. Agents should follow the pointer from the create
+        # response below.
 
 
-**Created:** {workspace['metadata']['created_at']}
-
-**Status:** Active
-
-**Agent:** {self.agent.agent_name}
-
-**Ephemeral:** {workspace['metadata']['ephemeral']}
-
-
-
-{context_info}{template_info}
-
-## Sections
-
-
-
-| Section | Purpose |
-
-|---------|---------|
-
-| findings | Discovered facts and observations |
-
-| results | Completed outcomes and outputs |
-
-| insights | Learned lessons and realizations |
-
-| notes | General notes and thoughts |
-
-| decisions | Key decisions made |
-
-| backtrack | Items to revisit or reconsider |
-
-
-
-## Quick Commands
-
-
-
-```json
-
-// Add to section
-
-{{"tool_name": "pen_paper", "tool_args": {{"action": "update", "name": "{name}", "section": "findings", "content": "Your finding here"}}}}
-
-
-
-// Read workspace
-
-{{"tool_name": "pen_paper", "tool_args": {{"action": "read", "name": "{name}"}}}}
-
-
-
-// Close workspace (vectorize + ephemeral)
-
-{{"tool_name": "pen_paper", "tool_args": {{"action": "close", "name": "{name}", "vectorize": true, "ephemeral": true}}}}
-
-```
-
-"""
-
-        
-
-        readme_file = str(Path(workspace_dir) / "README.md")
-
-        files.write_file(readme_file, readme_content)
-
-        
 
         response_msg = f"📝 Created workspace: **{name}**\n\n"
 
@@ -798,27 +708,28 @@ class PenPaper(Tool):
                 except json.JSONDecodeError:
                     pass
 
-            # Create entry
-            entry = {
-                "timestamp": datetime.now().isoformat(),
-                "content": content,
-                "agent": self.agent.agent_name
-            }
-
-            # Ensure section exists
-            if section not in workspace:
-                workspace[section] = []
-            
-
-            # Add entry
-            workspace[section].append(entry)
-
-            self._ensure_workspace_chat_id(workspace)
-
-            # Save
-            files.write_file(workspace_file, json.dumps(workspace, indent=2))
-
-            count = len(workspace[section])
+            # Hands: delegate the bytes-to-disk write to sessions_store.append_section
+            # (UTC timestamp + agent + source="tool"). etag="" skips the stale check —
+            # the tool is a trusted writer that orchestrated above; UI writes still
+            # enforce etag. metadata_patch back-fills chat_id without overwriting.
+            from usr.plugins.a0_pen_paper.helpers import sessions_store
+            chat_id = self._current_chat_id()
+            result = sessions_store.append_section(
+                name=name,
+                section=section,
+                content=content,
+                etag="",
+                author="agent",
+                source="tool",
+                agent=self.agent.agent_name,
+                metadata_patch={"chat_id": chat_id} if chat_id else None,
+            )
+            if not result.get("ok"):
+                return Response(
+                    message=f"❌ Update rejected: {result.get('message') or result.get('error')}",
+                    break_loop=False,
+                )
+            count = result.get("entry_count", 0)
 
             return Response(
                 message=f"✏️ Updated **{section}** in '{name}'\n\n"

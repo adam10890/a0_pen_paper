@@ -417,8 +417,19 @@ def append_section(
     *,
     author: str = "user",
     source: str = "ui",
+    agent: str | None = None,
+    metadata_patch: dict[str, Any] | None = None,
     cfg: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Append an entry to a workspace section.
+
+    `agent` is included in the written entry when provided (tool writes set it
+    to the agent name; UI writes leave it unset). `etag=""` skips the
+    stale-check — used by trusted writers (the agent's own tool path) that
+    serialize via the tool, not the Canvas UI. `metadata_patch` lets the caller
+    back-fill keys into `workspace["metadata"]` in the same atomic write — only
+    keys that are currently missing/falsy are filled, never overwritten.
+    """
     if section not in VALID_SECTIONS:
         raise ValueError(f"Invalid section: {section}")
     wf = _workspace_file(name, cfg)
@@ -437,12 +448,19 @@ def append_section(
         return {"ok": False, "error": "closed", "message": "Cannot update a closed workspace."}
     if section not in workspace:
         workspace[section] = []
-    entry = {
+    if metadata_patch:
+        meta = workspace.setdefault("metadata", {})
+        for k, v in metadata_patch.items():
+            if v and not meta.get(k):
+                meta[k] = v
+    entry: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "content": content,
         "source": source,
         "author": author,
     }
+    if agent:
+        entry["agent"] = agent
     workspace[section].append(entry)
     wf.write_text(json.dumps(workspace, indent=2), encoding="utf-8")
     new_etag = file_etag(wf)
