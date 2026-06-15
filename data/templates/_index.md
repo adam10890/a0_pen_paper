@@ -10,6 +10,7 @@ Each entry: `path — one-line summary — when to read`.
 |---|---|
 | Starting a brand-new session | `data/templates/session.md` (template) |
 | Confused about rules / first time | `_start_here.md` (sibling) |
+| Seeing an unfamiliar name for P&P (e.g. `P&P`, `pen_paper`, `עט ונייר`) | `_aliases.md` (sibling) |
 | Need the full methodology | `skills/pen-and-paper/SKILL.md` |
 | Session approaching 250 lines | `skills/pen-and-paper/references/session-management.md` (cleanup) |
 | Need to split a session | `skills/pen-and-paper/references/session-management.md` (split) |
@@ -23,6 +24,7 @@ Each entry: `path — one-line summary — when to read`.
 
 - `_start_here.md` — operating instructions, 7 core rules — **always read first**.
 - `_index.md` — this page — when you do not know which other page to open.
+- `_aliases.md` — all the names that refer to Pen & Paper (and the ones that do not) — when terminology looks ambiguous.
 
 ### Templates (copy when creating)
 
