@@ -15,15 +15,10 @@ system_overview:
   principle: "Memory = Library | P&P = Notebook on desk"
   key_concept: "Work from P&P, not from memory searches"
 
-# Essential rules (loaded first)
-core_rules:
-  - "P&P is Workspace, not Storage - extract relevant info from memory, don't copy everything"
-  - "Work only from P&P during execution - no repeated memory searches"
-  - "Critical information goes at TOP or BOTTOM - never in middle (Lost in the Middle research)"
-  - "Optimal document length: 200-300 lines"
-  - "Warning at 250 lines: time to clean up"
-  - "Mandatory action at 300 lines: split or archive completed sections"
-  - "Headers are anchors - maintain logical hierarchy"
+# Core rules — canonical homes are data/templates/_start_here.md (human-facing)
+# and data/config/rules.yaml (machine-readable). Kept here as an empty list so
+# loaders that look up `core_rules` get a defined key without duplicated content.
+core_rules: []
 
 # File structure and organization
 file_structure:

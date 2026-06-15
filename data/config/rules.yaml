@@ -154,6 +154,17 @@ ownership_matrix:
     updater: "Never"
     deleter: "Auto (>90 days)"
 
+sections:
+  description: "Canonical hints for each VALID_SECTIONS entry in pen_paper workspaces"
+  hints:
+    findings: "Discovered facts and observations"
+    results: "Completed outcomes and outputs"
+    insights: "Learned lessons and realizations"
+    notes: "General notes and thoughts"
+    decisions: "Key decisions made"
+    backtrack: "Items to revisit or reconsider"
+    execution_log: "Workflow step status (pending/running/done/failed/skipped)"
+
 execution_contract:
   description: "Rules governing workflow step execution and state commit"
   rules:

@@ -47,11 +47,12 @@ class PenPaper(Tool):
     # Onboarding config path
     RUNTIME_BASE = "usr/pen_and_paper"
     ONBOARDING_PATH = f"{RUNTIME_BASE}/config/onboarding.yaml"
-    
+    RULES_PATH = f"{RUNTIME_BASE}/config/rules.yaml"
+
     def _load_onboarding(self) -> dict:
         """Load onboarding configuration from YAML file."""
         onboarding_path = files.get_abs_path(self.ONBOARDING_PATH)
-        
+
         if Path(onboarding_path).exists():
             try:
                 content = files.read_file(onboarding_path)
@@ -63,6 +64,32 @@ class PenPaper(Tool):
             except Exception as e:
                 print(f"Failed to load onboarding config: {e}")
         return {}
+
+    def _load_rules(self) -> dict:
+        """Load machine-readable rules from rules.yaml (single source of truth)."""
+        rules_path = files.get_abs_path(self.RULES_PATH)
+        if Path(rules_path).exists():
+            try:
+                content = files.read_file(rules_path)
+                if yaml is not None:
+                    return yaml.safe_load(content) or {}
+                if _parse_yaml_minimal is not None:
+                    return _parse_yaml_minimal(content) or {}
+            except Exception as e:
+                print(f"Failed to load rules config: {e}")
+        return {}
+
+    def _section_hints(self) -> dict:
+        """Section name -> short description. Loaded from rules.yaml::sections.hints."""
+        try:
+            rules = self._load_rules()
+            hints = (rules.get("sections") or {}).get("hints") or {}
+            if isinstance(hints, dict) and hints:
+                return hints
+        except Exception:
+            pass
+        # Minimal fallback — keep tool functional if rules.yaml is missing.
+        return {sec: "" for sec in self.VALID_SECTIONS}
     
     def _is_first_time_user(self) -> bool:
         """Check if this is a first-time user (no existing sessions)."""
@@ -84,70 +111,41 @@ class PenPaper(Tool):
         return active_count == 0 and archive_count == 0
     
     def _get_quick_start_message(self) -> str:
-        """Get formatted quick start message from onboarding config."""
-        onboarding = self._load_onboarding()
-        
-        if not onboarding:
-            return ""
-        
-        msg = "# 📝 Pen & Paper - Quick Start\n\n"
-        
-        # System overview
-        overview = onboarding.get("system_overview", {})
-        if overview:
-            msg += f"**{overview.get('name', 'Pen & Paper')}**: {overview.get('purpose', '')}\n"
-            msg += f"*{overview.get('principle', '')}*\n\n"
-        
-        # Core rules
-        rules = onboarding.get("core_rules", [])
-        if rules:
-            msg += "## Core Rules\n"
-            for rule in rules[:5]:  # Show top 5 rules
-                msg += f"- {rule}\n"
-            msg += "\n"
-        
-        # Available templates
-        templates = onboarding.get("templates", {}).get("available", [])
-        if templates:
-            msg += "## Available Templates\n"
-            for tmpl in templates:
-                msg += f"- **{tmpl.get('id', '')}**: {tmpl.get('purpose', '')}\n"
-            msg += "\n"
-        
-        # Quick commands
-        msg += "## Quick Commands\n"
-        msg += "```\n"
-        msg += "pen_paper(action='create', name='my_task')  # Create new session\n"
-        msg += "pen_paper(action='update', name='...', section='notes', content='...')  # Add notes\n"
-        msg += "pen_paper(action='read', name='...')  # Read session\n"
-        msg += "pen_paper(action='close', name='...', vectorize=True)  # Close and save\n"
-        msg += "pen_paper(action='help')  # Show this help\n"
-        msg += "```\n\n"
-        
-        return msg
-    
+        """Short pointer to the canonical operating instructions.
+
+        The full methodology lives in `data/templates/_start_here.md` and the
+        catalog in `_index.md`. Keeping the tool message tiny means it costs
+        almost nothing in context and that small and flagship models read the
+        same source of truth.
+        """
+        return (
+            "# Pen & Paper\n\n"
+            "Read `data/templates/_start_here.md` first — operating rules.\n"
+            "Then `data/templates/_index.md` — pick the minimum reference pages.\n"
+            "Methodology: `skills/pen-and-paper/SKILL.md` (when/why) and "
+            "`skills/pen-and-paper-workflow/SKILL.md` (deterministic execution + "
+            "template authoring).\n\n"
+        )
+
     async def _show_help(self) -> Response:
-        """Show help information including onboarding and available templates."""
+        """Show the tool's API surface (actions + sections) plus a pointer to skills."""
         help_msg = self._get_quick_start_message()
-        
-        if not help_msg:
-            help_msg = "# 📝 Pen & Paper Help\n\n"
-        
-        # Add available templates from registry
+
+        # Templates available in the runtime registry (data, not methodology).
         templates = self._get_available_templates()
         if templates:
             help_msg += "## Templates from Registry\n"
             for tmpl in templates:
                 help_msg += f"- `{tmpl}`\n"
             help_msg += "\n"
-        
-        # Add valid sections info
+
+        # Valid sections — the tool's contract (cannot live elsewhere; consumers grep for this).
         help_msg += "## Valid Sections\n"
         for sec in self.VALID_SECTIONS:
             help_msg += f"- `{sec}`\n"
         help_msg += "\n"
-        
-        # Add action reference
+
+        # Action reference — the tool's API surface.
         help_msg += "## Available Actions\n"
         help_msg += "| Action | Description |\n"
         help_msg += "|--------|-------------|\n"
@@ -156,8 +154,11 @@ class PenPaper(Tool):
         help_msg += "| `read` | Read workspace or section |\n"
         help_msg += "| `close` | Close workspace with auto-summary |\n"
         help_msg += "| `list` | List all active workspaces |\n"
+        help_msg += "| `list_templates` | List available workflow templates |\n"
+        help_msg += "| `use_template` | Open a workspace from a template |\n"
+        help_msg += "| `create_template` / `edit_template` / `delete_template` | Author templates |\n"
         help_msg += "| `help` | Show this help message |\n"
-        
+
         return Response(message=help_msg, break_loop=False)
 
     async def execute(self, **kwargs) -> Response:
@@ -717,15 +718,7 @@ class PenPaper(Tool):
 
         response_msg += f"**Path:** `{workspace_dir}`\n\n"
 
-        section_hints = {
-            "findings": "Discovered facts and observations",
-            "results": "Completed outcomes and outputs",
-            "insights": "Learned lessons and realizations",
-            "notes": "General notes and thoughts",
-            "decisions": "Key decisions made",
-            "backtrack": "Items to revisit or reconsider",
-            "execution_log": "Workflow step status (pending/running/done/failed/skipped)",
-        }
+        section_hints = self._section_hints()
         response_msg += "**Available sections:**\n"
         for sec in self.VALID_SECTIONS:
             hint = section_hints.get(sec, "")
@@ -1193,17 +1186,18 @@ class PenPaper(Tool):
         
 
         if not workspaces:
-            # Check if this is a first-time user and show onboarding
+            # Check if this is a first-time user and show a pointer to the docs.
             if self._is_first_time_user():
-                onboarding_msg = self._get_quick_start_message()
                 return Response(
-                    message=f"🎉 **Welcome to Pen & Paper!**\n\n"
-                           f"{onboarding_msg}"
-                           f"---\n\n"
-                           f"📭 No active workspaces yet.\n\n"
-                           f"**Create your first workspace:**\n"
-                           f"`pen_paper(action='create', name='my_first_task')`",
-                    break_loop=False
+                    message=(
+                        "Welcome to Pen & Paper. "
+                        "Read `data/templates/_start_here.md` first — it is the "
+                        "short operating manual.\n\n"
+                        "No active workspaces yet.\n\n"
+                        "Create your first workspace:\n"
+                        "`pen_paper(action='create', name='my_first_task')`"
+                    ),
+                    break_loop=False,
                 )
             else:
                 return Response(
