@@ -10,7 +10,6 @@ This script can be run from the Plugins UI for manual maintenance tasks:
 """
 
 import sys
-import json
 import shutil
 from pathlib import Path
 

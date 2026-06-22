@@ -3,7 +3,6 @@ Inject pen_paper_wiki_template tool prompt only when LLM Wiki integration is ena
 """
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
