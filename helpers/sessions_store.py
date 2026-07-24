@@ -40,6 +40,18 @@ STATE_DOX_REL = "knowledge/workflows/state_dox"
 STATE_NORMAL = "NORMAL"
 STATE_ARCHIVED = "ARCHIVED"
 
+# Valid values for the `type` field of an entry in the `relations` array on a
+# session workspace (inspired by usememos/memos' MemoRelation.Type). `relations`
+# is stored as a top-level `["relations"]` key on the workspace — NOT under
+# `metadata`, and NOT one of VALID_SECTIONS (it is a typed link graph between
+# sessions, not a content section). REFERENCE mirrors memos' "this session
+# references/relates to another"; COMMENT mirrors "this session comments on
+# another" (e.g. a debugging session commenting on the solution session it
+# debugged). A session may not relate to itself — see _validate_relation().
+RELATION_REFERENCE = "REFERENCE"
+RELATION_COMMENT = "COMMENT"
+VALID_RELATION_TYPES = (RELATION_REFERENCE, RELATION_COMMENT)
+
 # Regexes backing the computed `properties` exposed by list_sessions() (inspired by
 # usememos/memos' Property submessage: has_link, has_task_list, has_code,
 # has_incomplete_tasks, title). Compiled once at module load — list_sessions() runs
@@ -367,6 +379,8 @@ def list_sessions(
                 is_current_chat = bool(chat_id and session_chat == chat_id)
                 is_chat_focus = bool(focus_workspace and name == focus_workspace)
                 is_orphan = session_chat is None
+                raw_relations = workspace.get("relations")
+                relations = raw_relations if isinstance(raw_relations, list) else []
                 out.append(
                     {
                         "name": name,
@@ -379,6 +393,8 @@ def list_sessions(
                         "etag": file_etag(wf),
                         "section_counts": counts,
                         "properties": _compute_session_properties(workspace, name),
+                        "relations": relations,
+                        "relation_count": len(relations),
                         "is_current_chat": is_current_chat,
                         "is_chat_focus": is_chat_focus,
                         "is_orphan": is_orphan,
@@ -439,6 +455,96 @@ def set_workspace_state(
     meta["state"] = state
     wf.write_text(json.dumps(workspace, indent=2), encoding="utf-8")
     return {"ok": True, "name": name, "state": state}
+
+
+def _validate_relation(entry: Any, *, self_name: str) -> dict[str, Any]:
+    """Validate and normalize a single `relations` entry.
+
+    Rejects: a non-dict entry, an unknown `type` (must be one of
+    VALID_RELATION_TYPES), an empty/non-string `target`, and a self-relation
+    (`target == self_name` — a session cannot relate to itself; this is a
+    deliberate choice, not an oversight, to keep the link graph acyclic at the
+    trivial single-node case). Deliberately does NOT check that `target` refers
+    to an existing session: a relation may point at a session that does not
+    exist yet or was later deleted, and enforcing existence here would make
+    session ordering/creation brittle.
+    """
+    if not isinstance(entry, dict):
+        raise ValueError(f"Invalid relation entry: expected a dict, got {type(entry).__name__}")
+    rel_type = entry.get("type")
+    if rel_type not in VALID_RELATION_TYPES:
+        raise ValueError(f"Invalid relation type: {rel_type!r}")
+    target = entry.get("target")
+    if not isinstance(target, str) or not target.strip():
+        raise ValueError("Relation target must be a non-empty string")
+    if target == self_name:
+        raise ValueError(f"A session cannot have a relation to itself: {self_name!r}")
+    return {"type": rel_type, "target": target}
+
+
+def list_relations(name: str, *, cfg: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Read the `relations` array of a session workspace.
+
+    Returns `[]` when the workspace has no `relations` key — true for every
+    pre-existing workspace.json file — without raising and without rewriting
+    the file to backfill an empty array. Uses _find_workspace_file() (checks
+    sessions/active then sessions/archive) so relations work for archived
+    sessions too.
+    """
+    wf, _ = _find_workspace_file(name, cfg)
+    if not wf.exists():
+        raise FileNotFoundError(f"Workspace '{name}' not found")
+    workspace = json.loads(wf.read_text(encoding="utf-8"))
+    relations = workspace.get("relations")
+    return relations if isinstance(relations, list) else []
+
+
+def set_relations(
+    name: str, relations: list[dict[str, Any]], *, cfg: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Replace the whole `relations` array on a session workspace (memos'
+    `SetMemoRelations` semantics — this REPLACES the array, it does not append
+    to it). Every entry is validated (see _validate_relation()) before
+    anything is written, so a bad entry leaves the stored array untouched.
+    """
+    if not isinstance(relations, list):
+        raise ValueError("relations must be a list")
+    wf, _ = _find_workspace_file(name, cfg)
+    if not wf.exists():
+        raise FileNotFoundError(f"Workspace '{name}' not found")
+    normalized = [_validate_relation(entry, self_name=name) for entry in relations]
+    workspace = json.loads(wf.read_text(encoding="utf-8"))
+    workspace["relations"] = normalized
+    wf.write_text(json.dumps(workspace, indent=2), encoding="utf-8")
+    return {"ok": True, "name": name, "relations": normalized}
+
+
+def add_relation(
+    name: str, target: str, rel_type: str, *, cfg: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Append a single relation to a session workspace, idempotently.
+
+    Adding the same (type, target) pair twice is a no-op — the stored array
+    never gets a duplicate entry. Validates the new entry the same way
+    set_relations() does (see _validate_relation()); does not touch or
+    re-validate any pre-existing entries in the array.
+    """
+    entry = _validate_relation({"type": rel_type, "target": target}, self_name=name)
+    wf, _ = _find_workspace_file(name, cfg)
+    if not wf.exists():
+        raise FileNotFoundError(f"Workspace '{name}' not found")
+    workspace = json.loads(wf.read_text(encoding="utf-8"))
+    existing = workspace.get("relations")
+    current = list(existing) if isinstance(existing, list) else []
+    already_present = any(
+        isinstance(r, dict) and r.get("type") == entry["type"] and r.get("target") == entry["target"]
+        for r in current
+    )
+    if not already_present:
+        current.append(entry)
+    workspace["relations"] = current
+    wf.write_text(json.dumps(workspace, indent=2), encoding="utf-8")
+    return {"ok": True, "name": name, "relations": current}
 
 
 def get_session(
