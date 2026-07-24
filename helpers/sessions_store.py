@@ -32,6 +32,14 @@ _NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 # (PR1b) reuses this constant.
 STATE_DOX_REL = "knowledge/workflows/state_dox"
 
+# Valid values for the `metadata.state` field on a session workspace (inspired by
+# usememos/memos). This is ORTHOGONAL to `metadata.status` (active|closed, which
+# tracks work-lifecycle): `state` tracks whether the session is archived. When the
+# field is absent (pre-existing workspace.json files), it is DERIVED from the
+# directory the file was found in — see _resolve_workspace_state().
+STATE_NORMAL = "NORMAL"
+STATE_ARCHIVED = "ARCHIVED"
+
 DEFAULT_SESSION_STATE: dict[str, Any] = {
     "session": {
         "goal": "",
@@ -75,6 +83,10 @@ def sessions_dir(cfg: dict[str, Any] | None = None) -> Path:
     return _abs_runtime(cfg) / "sessions" / "active"
 
 
+def archive_dir(cfg: dict[str, Any] | None = None) -> Path:
+    return _abs_runtime(cfg) / "sessions" / "archive"
+
+
 def focus_path(cfg: dict[str, Any] | None = None) -> Path:
     return _abs_runtime(cfg) / ".ui" / "focus.json"
 
@@ -91,6 +103,41 @@ def _workspace_file(name: str, cfg: dict[str, Any] | None = None) -> Path:
 
 def state_dir(name: str, cfg: dict[str, Any] | None = None) -> Path:
     return sessions_dir(cfg) / _safe_workspace_name(name) / "state"
+
+
+def _resolve_workspace_state(meta: dict[str, Any], dir_state: str) -> str:
+    """Resolve a workspace's archival state.
+
+    `metadata.state` is authoritative when present and valid; otherwise falls
+    back to `dir_state` (derived from the directory the workspace was found
+    in). This keeps old workspace.json files — which have no `state` field —
+    working with zero migration.
+    """
+    explicit = meta.get("state")
+    if explicit in (STATE_NORMAL, STATE_ARCHIVED):
+        return explicit
+    return dir_state
+
+
+def _find_workspace_file(
+    name: str, cfg: dict[str, Any] | None = None
+) -> tuple[Path, str]:
+    """Locate a workspace file by name, checking active then archive.
+
+    Returns (path, dir_state) where dir_state is the directory-derived
+    fallback state for that location. If the workspace exists in neither
+    directory, returns the active-dir path (which will not exist) so callers
+    get a consistent FileNotFoundError-style path to report.
+    """
+    safe = _safe_workspace_name(name)
+    for directory, dir_state in (
+        (sessions_dir(cfg), STATE_NORMAL),
+        (archive_dir(cfg), STATE_ARCHIVED),
+    ):
+        candidate = directory / safe / "workspace.json"
+        if candidate.exists():
+            return candidate, dir_state
+    return sessions_dir(cfg) / safe / "workspace.json", STATE_NORMAL
 
 
 def workflow_templates_dir() -> Path:
@@ -228,48 +275,56 @@ def list_sessions(
     chat_id: str | None = None,
     *,
     chat_only: bool = False,
+    include_archived: bool = False,
 ) -> dict[str, Any]:
     base = sessions_dir(cfg)
     base.mkdir(parents=True, exist_ok=True)
+    scan_dirs = [(base, STATE_NORMAL)]
+    if include_archived:
+        archive = archive_dir(cfg)
+        archive.mkdir(parents=True, exist_ok=True)
+        scan_dirs.append((archive, STATE_ARCHIVED))
     focus = read_focus(chat_id, cfg) if chat_id else {}
     focus_workspace = focus.get("workspace") if isinstance(focus, dict) else None
     out: list[dict[str, Any]] = []
-    for ws_path in base.iterdir():
-        if not ws_path.is_dir():
-            continue
-        wf = ws_path / "workspace.json"
-        if not wf.exists():
-            continue
-        try:
-            workspace = json.loads(wf.read_text(encoding="utf-8"))
-            meta = workspace.get("metadata") or {}
-            name = meta.get("name", ws_path.name)
-            session_chat = meta.get("chat_id")
-            counts = {
-                s: len(workspace.get(s) or [])
-                for s in VALID_SECTIONS
-                if isinstance(workspace.get(s), list)
-            }
-            is_current_chat = bool(chat_id and session_chat == chat_id)
-            is_chat_focus = bool(focus_workspace and name == focus_workspace)
-            is_orphan = session_chat is None
-            out.append(
-                {
-                    "name": name,
-                    "status": meta.get("status", "unknown"),
-                    "template": meta.get("template"),
-                    "chat_id": session_chat,
-                    "created": (meta.get("created_at") or "")[:16],
-                    "mtime": wf.stat().st_mtime,
-                    "etag": file_etag(wf),
-                    "section_counts": counts,
-                    "is_current_chat": is_current_chat,
-                    "is_chat_focus": is_chat_focus,
-                    "is_orphan": is_orphan,
+    for scan_dir, dir_state in scan_dirs:
+        for ws_path in scan_dir.iterdir():
+            if not ws_path.is_dir():
+                continue
+            wf = ws_path / "workspace.json"
+            if not wf.exists():
+                continue
+            try:
+                workspace = json.loads(wf.read_text(encoding="utf-8"))
+                meta = workspace.get("metadata") or {}
+                name = meta.get("name", ws_path.name)
+                session_chat = meta.get("chat_id")
+                counts = {
+                    s: len(workspace.get(s) or [])
+                    for s in VALID_SECTIONS
+                    if isinstance(workspace.get(s), list)
                 }
-            )
-        except Exception:
-            continue
+                is_current_chat = bool(chat_id and session_chat == chat_id)
+                is_chat_focus = bool(focus_workspace and name == focus_workspace)
+                is_orphan = session_chat is None
+                out.append(
+                    {
+                        "name": name,
+                        "status": meta.get("status", "unknown"),
+                        "state": _resolve_workspace_state(meta, dir_state),
+                        "template": meta.get("template"),
+                        "chat_id": session_chat,
+                        "created": (meta.get("created_at") or "")[:16],
+                        "mtime": wf.stat().st_mtime,
+                        "etag": file_etag(wf),
+                        "section_counts": counts,
+                        "is_current_chat": is_current_chat,
+                        "is_chat_focus": is_chat_focus,
+                        "is_orphan": is_orphan,
+                    }
+                )
+            except Exception:
+                continue
     out.sort(key=_session_sort_key)
     visible = out
     if chat_id and chat_only:
@@ -286,6 +341,43 @@ def list_sessions(
         "current_chat_id": chat_id,
         "focus": focus,
     }
+
+
+def get_workspace_state(name: str, *, cfg: dict[str, Any] | None = None) -> str:
+    """Read a session's archival state (`STATE_NORMAL` or `STATE_ARCHIVED`).
+
+    Looks in `sessions/active` then `sessions/archive`. Honors an explicit
+    `metadata.state` when present; otherwise derives it from whichever
+    directory the workspace was found in (back-compat for old workspaces).
+    """
+    wf, dir_state = _find_workspace_file(name, cfg)
+    if not wf.exists():
+        raise FileNotFoundError(f"Workspace '{name}' not found")
+    workspace = json.loads(wf.read_text(encoding="utf-8"))
+    meta = workspace.get("metadata") or {}
+    return _resolve_workspace_state(meta, dir_state)
+
+
+def set_workspace_state(
+    name: str, state: str, *, cfg: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Set an explicit `metadata.state` on a session workspace.
+
+    This only writes the field on the workspace.json in whichever directory
+    it currently lives in — it does NOT move the file between
+    sessions/active and sessions/archive. Directory layout is unchanged by
+    this helper; `state` is an additive, orthogonal field.
+    """
+    if state not in (STATE_NORMAL, STATE_ARCHIVED):
+        raise ValueError(f"Invalid state: {state}")
+    wf, _ = _find_workspace_file(name, cfg)
+    if not wf.exists():
+        raise FileNotFoundError(f"Workspace '{name}' not found")
+    workspace = json.loads(wf.read_text(encoding="utf-8"))
+    meta = workspace.setdefault("metadata", {})
+    meta["state"] = state
+    wf.write_text(json.dumps(workspace, indent=2), encoding="utf-8")
+    return {"ok": True, "name": name, "state": state}
 
 
 def get_session(
