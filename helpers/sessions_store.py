@@ -40,6 +40,16 @@ STATE_DOX_REL = "knowledge/workflows/state_dox"
 STATE_NORMAL = "NORMAL"
 STATE_ARCHIVED = "ARCHIVED"
 
+# Regexes backing the computed `properties` exposed by list_sessions() (inspired by
+# usememos/memos' Property submessage: has_link, has_task_list, has_code,
+# has_incomplete_tasks, title). Compiled once at module load — list_sessions() runs
+# these per session inside a directory scan, so recompiling per call would be waste.
+_LINK_RE = re.compile(r"https?://\S+|\[[^\]]*\]\([^)]+\)")
+_TASK_RE = re.compile(r"^[ \t]*-\s*\[[ xX]\]", re.MULTILINE)
+_UNCHECKED_TASK_RE = re.compile(r"^[ \t]*-\s*\[ \]", re.MULTILINE)
+_CODE_FENCE_RE = re.compile(r"```")
+_H1_RE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+
 DEFAULT_SESSION_STATE: dict[str, Any] = {
     "session": {
         "goal": "",
@@ -238,6 +248,56 @@ def _section_text(entries: list) -> str:
     return "\n\n---\n\n".join(parts)
 
 
+def _compute_session_properties(workspace: dict[str, Any], name: str) -> dict[str, Any]:
+    """Derive cheap, queryable facts from a session's content (inspired by
+    usememos/memos' Property submessage), so a client/agent can triage a session
+    list WITHOUT opening and parsing every record.
+
+    Flattens all section entries into ONE text blob and computes every property
+    from that single pass — no re-reading or re-flattening per property. Never
+    raises: any malformed section (missing, non-list, non-string entries) just
+    yields the all-false/name-fallback default instead of breaking the session's
+    listing (list_sessions()'s per-session try/except stays for OTHER failures;
+    this function should never be the one it has to catch).
+    """
+    default: dict[str, Any] = {
+        "has_link": False,
+        "has_task_list": False,
+        "has_incomplete_tasks": False,
+        "has_code": False,
+        "has_execution_log": False,
+        "has_backtrack": False,
+        "title": name,
+    }
+    try:
+        parts: list[str] = []
+        for sec in VALID_SECTIONS:
+            entries = workspace.get(sec)
+            if isinstance(entries, list):
+                text = _section_text(entries)
+                if text:
+                    parts.append(text)
+        combined = "\n\n---\n\n".join(parts)
+
+        exec_entries = workspace.get("execution_log")
+        backtrack_entries = workspace.get("backtrack")
+
+        h1_match = _H1_RE.search(combined)
+        title = h1_match.group(1).strip() if h1_match else ""
+
+        return {
+            "has_link": bool(_LINK_RE.search(combined)),
+            "has_task_list": bool(_TASK_RE.search(combined)),
+            "has_incomplete_tasks": bool(_UNCHECKED_TASK_RE.search(combined)),
+            "has_code": bool(_CODE_FENCE_RE.search(combined)),
+            "has_execution_log": isinstance(exec_entries, list) and len(exec_entries) > 0,
+            "has_backtrack": isinstance(backtrack_entries, list) and len(backtrack_entries) > 0,
+            "title": title or name,
+        }
+    except Exception:
+        return default
+
+
 def _read_yaml(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
@@ -318,6 +378,7 @@ def list_sessions(
                         "mtime": wf.stat().st_mtime,
                         "etag": file_etag(wf),
                         "section_counts": counts,
+                        "properties": _compute_session_properties(workspace, name),
                         "is_current_chat": is_current_chat,
                         "is_chat_focus": is_chat_focus,
                         "is_orphan": is_orphan,
