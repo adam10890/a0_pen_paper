@@ -4,6 +4,7 @@ Reads/writes workspace.json under runtime sessions/active.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import re
@@ -342,13 +343,260 @@ def _session_sort_key(item: dict[str, Any]) -> tuple:
     )
 
 
+# --- list_sessions() filter / order_by / pagination (inspired by usememos/memos'
+# ListMemosRequest: page_size, page_token, order_by, filter) -------------------
+#
+# Deliberately NOT a CEL (Common Expression Language) implementation: a full
+# expression grammar is a large parsing/attack/maintenance surface for a feature
+# that only ever needs a handful of AND-ed equality/substring/boolean checks.
+# Instead `filter` is a small structured dict; see _FILTER_KEYS below for the
+# closed set of supported keys. An unknown key is a hard error (see
+# _validate_filter) rather than being silently ignored, since silently ignoring
+# a typo'd filter key would return the wrong sessions with no indication why.
+
+PAGE_SIZE_MAX = 1000
+
+# Boolean computed properties from `properties` (9233c50) that may be filtered on.
+_FILTER_PROPERTY_KEYS = frozenset(
+    {
+        "has_link",
+        "has_task_list",
+        "has_incomplete_tasks",
+        "has_code",
+        "has_execution_log",
+        "has_backtrack",
+    }
+)
+
+# Full closed set of keys accepted by the `filter` dict.
+_FILTER_KEYS = _FILTER_PROPERTY_KEYS | {
+    "state",
+    "status",
+    "template",
+    "chat_id",
+    "name_contains",
+    "has_relations",
+    "relation_target",
+}
+
+# order_by fields (1d7a346/9233c50/313b73d expose "mtime", "created", "name" on
+# every session dict already). Each maps to a sort key function; direction is an
+# optional trailing " asc"/" desc" token (SQL-style: ascending is the default
+# when no direction is given).
+_ORDER_BY_FIELD_KEYS: dict[str, Any] = {
+    "mtime": lambda s: float(s.get("mtime") or 0),
+    "created": lambda s: s.get("created") or "",
+    "name": lambda s: (s.get("name") or "").lower(),
+}
+
+
+def _validate_filter(filter: dict[str, Any] | None) -> dict[str, Any]:
+    """Validate a structured `filter` dict, raising on anything unsupported.
+
+    Returns {} for None (no-op, matches pre-filter behavior exactly).
+    """
+    if filter is None:
+        return {}
+    if not isinstance(filter, dict):
+        raise ValueError("filter must be a dict")
+    unknown = sorted(set(filter) - _FILTER_KEYS)
+    if unknown:
+        raise ValueError(
+            f"Unknown filter key(s): {unknown}. Supported keys: {sorted(_FILTER_KEYS)}"
+        )
+    return filter
+
+
+def _session_matches_filter(session: dict[str, Any], filter: dict[str, Any]) -> bool:
+    """AND together every key present in `filter` against one session dict."""
+    if "state" in filter and session.get("state") != filter["state"]:
+        return False
+    if "status" in filter and session.get("status") != filter["status"]:
+        return False
+    if "template" in filter and session.get("template") != filter["template"]:
+        return False
+    if "chat_id" in filter and session.get("chat_id") != filter["chat_id"]:
+        return False
+    if "name_contains" in filter:
+        needle = str(filter["name_contains"]).lower()
+        if needle not in (session.get("name") or "").lower():
+            return False
+    props = session.get("properties") or {}
+    for key in _FILTER_PROPERTY_KEYS:
+        if key in filter and bool(props.get(key)) != bool(filter[key]):
+            return False
+    if "has_relations" in filter:
+        has_rel = (session.get("relation_count") or 0) > 0
+        if has_rel != bool(filter["has_relations"]):
+            return False
+    if "relation_target" in filter:
+        target = filter["relation_target"]
+        relations = session.get("relations") or []
+        if not any(isinstance(r, dict) and r.get("target") == target for r in relations):
+            return False
+    return True
+
+
+def _validate_page_size(page_size: int | None) -> int | None:
+    """Validate `page_size`. None means "no pagination" (unchanged behavior).
+
+    Non-positive values are rejected outright. Values over PAGE_SIZE_MAX are
+    silently clamped down to PAGE_SIZE_MAX (matching memos' own "default 50,
+    maximum 1000" convention of capping rather than erroring — a client asking
+    for "as many as possible" should get the max page, not a hard failure).
+    """
+    if page_size is None:
+        return None
+    if isinstance(page_size, bool) or not isinstance(page_size, int):
+        raise ValueError("page_size must be an int")
+    if page_size <= 0:
+        raise ValueError(f"page_size must be positive, got {page_size}")
+    return min(page_size, PAGE_SIZE_MAX)
+
+
+def _parse_order_by(order_by: str) -> tuple[Any, bool]:
+    """Parse an `order_by` string into (key_fn, reverse) for list.sort().
+
+    Accepts "<field>" or "<field> asc|desc" for field in _ORDER_BY_FIELD_KEYS.
+    Direction defaults to ascending when omitted (SQL ORDER BY convention).
+    Anything else raises ValueError with a clear message.
+    """
+    if not isinstance(order_by, str) or not order_by.strip():
+        raise ValueError(f"Invalid order_by: {order_by!r}")
+    tokens = order_by.strip().split()
+    if len(tokens) > 2:
+        raise ValueError(f"Invalid order_by: {order_by!r}")
+    field = tokens[0]
+    if field not in _ORDER_BY_FIELD_KEYS:
+        raise ValueError(
+            f"Invalid order_by field: {field!r}. Supported: {sorted(_ORDER_BY_FIELD_KEYS)}"
+        )
+    reverse = False
+    if len(tokens) == 2:
+        direction = tokens[1].lower()
+        if direction == "desc":
+            reverse = True
+        elif direction == "asc":
+            reverse = False
+        else:
+            raise ValueError(f"Invalid order_by direction: {tokens[1]!r}. Use 'asc' or 'desc'.")
+    return _ORDER_BY_FIELD_KEYS[field], reverse
+
+
+def _pagination_signature(
+    *,
+    order_by: str | None,
+    filter: dict[str, Any],
+    chat_only: bool,
+    chat_id: str | None,
+    include_archived: bool,
+) -> str:
+    """A short hash binding a page_token to the query shape that minted it.
+
+    This is what makes an invalid/stale page_token (e.g. one issued for a
+    different filter/order_by) fail loudly instead of silently returning an
+    offset into a differently-shaped list (which would look like pages
+    overlapping or skipping items).
+    """
+    payload = json.dumps(
+        {
+            "order_by": order_by,
+            "filter": filter,
+            "chat_only": bool(chat_only),
+            "chat_id": chat_id,
+            "include_archived": bool(include_archived),
+        },
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def _encode_page_token(offset: int, sig: str) -> str:
+    payload = json.dumps({"offset": offset, "sig": sig})
+    raw = base64.urlsafe_b64encode(payload.encode("utf-8"))
+    return raw.decode("ascii").rstrip("=")
+
+
+def _decode_page_token(page_token: str, sig: str) -> int:
+    """Decode an opaque page_token minted by _encode_page_token().
+
+    Raises ValueError (not IndexError/KeyError/a crash) on malformed input,
+    and on a token minted for a different filter/order_by/chat scope — a
+    silent fallback there would produce a page that quietly skips or repeats
+    items.
+    """
+    try:
+        padded = page_token + "=" * (-len(page_token) % 4)
+        raw = base64.urlsafe_b64decode(padded.encode("ascii"))
+        data = json.loads(raw.decode("utf-8"))
+        offset = data["offset"]
+        token_sig = data["sig"]
+    except Exception as exc:
+        raise ValueError(f"Invalid page_token: {page_token!r}") from exc
+    if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+        raise ValueError(f"Invalid page_token: {page_token!r}")
+    if token_sig != sig:
+        raise ValueError(
+            "page_token does not match the current filter/order_by/chat_only/"
+            "chat_id/include_archived parameters; request a fresh listing"
+        )
+    return offset
+
+
 def list_sessions(
     cfg: dict[str, Any] | None = None,
     chat_id: str | None = None,
     *,
     chat_only: bool = False,
     include_archived: bool = False,
+    page_size: int | None = None,
+    page_token: str | None = None,
+    order_by: str | None = None,
+    filter: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """List session workspaces.
+
+    All of page_size/page_token/order_by/filter are optional and keyword-only;
+    omitting all four (the pre-existing call shape) reproduces the exact
+    pre-existing behavior byte-for-byte — this is the single most important
+    contract of this function and is covered explicitly in
+    tests/test_session_listing.py.
+
+    include_archived vs filter={"state": ...} precedence: include_archived
+    controls which DIRECTORIES are scanned from disk (sessions/active only, or
+    sessions/active + sessions/archive). filter={"state": ...} then narrows
+    the already-scanned set — it never WIDENS scope. So
+    filter={"state": "ARCHIVED"} with the default include_archived=False
+    returns an empty result (archived sessions were never scanned); seeing
+    ARCHIVED sessions via the state filter requires include_archived=True too.
+
+    order_by: None keeps the existing _session_sort_key() ordering (chat-focus
+    first, current-chat first, then mtime desc) exactly. Otherwise one of
+    "mtime", "created", "name", optionally suffixed with " asc"/" desc"
+    (default direction is ascending, SQL ORDER BY convention).
+
+    filter: a structured (NOT CEL) dict of AND-ed conditions; see
+    _FILTER_KEYS for the supported keys. An unknown key raises ValueError.
+
+    page_size/page_token: page_size caps a page at PAGE_SIZE_MAX (=1000,
+    matching memos); non-positive values raise, values above the max are
+    clamped. page_token is an opaque, base64-encoded continuation token
+    bound to the exact filter/order_by/chat scope that minted it — reusing
+    it with a different filter/order_by/chat_id/chat_only/include_archived
+    raises rather than silently returning a mismatched page. Filtering and
+    ordering are always applied BEFORE pagination, so pages partition a
+    stable, non-overlapping sequence.
+    """
+    filt = _validate_filter(filter)
+    page_size_eff = _validate_page_size(page_size)
+    if page_token is not None and page_size_eff is None:
+        raise ValueError("page_token requires page_size")
+    if order_by is not None:
+        order_key_fn, order_reverse = _parse_order_by(order_by)
+    else:
+        order_key_fn, order_reverse = None, False
+
     base = sessions_dir(cfg)
     base.mkdir(parents=True, exist_ok=True)
     scan_dirs = [(base, STATE_NORMAL)]
@@ -402,7 +650,10 @@ def list_sessions(
                 )
             except Exception:
                 continue
-    out.sort(key=_session_sort_key)
+    if order_key_fn is None:
+        out.sort(key=_session_sort_key)
+    else:
+        out.sort(key=order_key_fn, reverse=order_reverse)
     visible = out
     if chat_id and chat_only:
         visible = [
@@ -411,13 +662,30 @@ def list_sessions(
             if s.get("is_current_chat")
             or (s.get("is_chat_focus") and focus_workspace == s.get("name"))
         ]
-    return {
-        "sessions": visible,
+    filtered = visible if not filt else [s for s in visible if _session_matches_filter(s, filt)]
+
+    result: dict[str, Any] = {
+        "sessions": filtered,
         "total_count": len(out),
-        "visible_count": len(visible),
+        "visible_count": len(filtered),
         "current_chat_id": chat_id,
         "focus": focus,
     }
+    if page_size_eff is not None:
+        sig = _pagination_signature(
+            order_by=order_by,
+            filter=filt,
+            chat_only=chat_only,
+            chat_id=chat_id,
+            include_archived=include_archived,
+        )
+        offset = 0 if page_token is None else _decode_page_token(page_token, sig)
+        page_items = filtered[offset : offset + page_size_eff]
+        next_offset = offset + page_size_eff
+        next_token = _encode_page_token(next_offset, sig) if next_offset < len(filtered) else None
+        result["sessions"] = page_items
+        result["next_page_token"] = next_token
+    return result
 
 
 def get_workspace_state(name: str, *, cfg: dict[str, Any] | None = None) -> str:
