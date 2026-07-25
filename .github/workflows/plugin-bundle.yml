@@ -1,0 +1,48 @@
+name: Plugin bundle
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate-and-bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install pytest pydantic pyyaml
+
+      - name: Validate plugin manifest
+        run: python -m pytest tests/test_plugin_manifest.py -q
+
+      - name: Build Agent Zero install ZIP
+        run: bash scripts/package_plugin_zip.sh
+
+      - name: Validate packaged ZIP layout
+        run: python -m pytest tests/test_plugin_zip.py -q
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: a0_pen_paper-plugin-bundle
+          path: dist/a0_pen_paper.zip
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/a0_pen_paper.zip
+          generate_release_notes: true

@@ -8,7 +8,41 @@ closing sessions into an archive.
 
 ## Install
 
-Extract this folder into:
+### Option A — ZIP (Plugin Installer UI)
+
+Agent Zero expects a ZIP archive whose **top-level folder** contains `plugin.yaml`
+(for example `a0_pen_paper/plugin.yaml`). The GitHub **Download ZIP** archive uses
+`a0_pen_paper-main/` and also works, but the recommended package is the curated
+bundle from this repository:
+
+```bash
+# From a clone of this repo
+bash scripts/package_plugin_zip.sh
+# => dist/a0_pen_paper.zip
+```
+
+On Windows:
+
+```powershell
+.\scripts\package_plugin_zip.ps1
+```
+
+In Agent Zero: **Plugins → Install Plugin → ZIP**, upload `dist/a0_pen_paper.zip`,
+then click **Install Plugin**.
+
+Tagged releases also publish the same ZIP as a release asset.
+
+### Option B — Git URL
+
+In **Plugins → Install Plugin → Git**, use:
+
+```text
+https://github.com/adam10890/a0_pen_paper
+```
+
+### Option C — Manual copy
+
+Extract or clone into:
 
 ```text
 /a0/usr/plugins/a0_pen_paper/
