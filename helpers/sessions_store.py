@@ -627,8 +627,7 @@ def list_sessions(
                 is_current_chat = bool(chat_id and session_chat == chat_id)
                 is_chat_focus = bool(focus_workspace and name == focus_workspace)
                 is_orphan = session_chat is None
-                raw_relations = workspace.get("relations")
-                relations = raw_relations if isinstance(raw_relations, list) else []
+                relations = _read_relations(workspace.get("relations"), name)
                 out.append(
                     {
                         "name": name,
@@ -750,6 +749,27 @@ def _validate_relation(entry: Any, *, self_name: str) -> dict[str, Any]:
     return {"type": rel_type, "target": target}
 
 
+def _read_relations(raw: Any, self_name: str) -> list[dict[str, Any]]:
+    """Return only the well-formed entries of a raw `relations` value.
+
+    The write path (_validate_relation) rejects malformed relations, but a
+    workspace.json can still be hand-edited or corrupted, so the read path
+    cannot assume the array is clean. Entries failing the same rules are
+    skipped rather than raised on: one bad entry must not make an otherwise
+    valid session unlistable. Applying the same rules on read keeps
+    `relation_count` truthful and stops filters matching invalid relations.
+    """
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for entry in raw:
+        try:
+            out.append(_validate_relation(entry, self_name=self_name))
+        except ValueError:
+            continue
+    return out
+
+
 def list_relations(name: str, *, cfg: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Read the `relations` array of a session workspace.
 
@@ -757,14 +777,13 @@ def list_relations(name: str, *, cfg: dict[str, Any] | None = None) -> list[dict
     pre-existing workspace.json file — without raising and without rewriting
     the file to backfill an empty array. Uses _find_workspace_file() (checks
     sessions/active then sessions/archive) so relations work for archived
-    sessions too.
+    sessions too. Malformed entries are skipped (see _read_relations).
     """
     wf, _ = _find_workspace_file(name, cfg)
     if not wf.exists():
         raise FileNotFoundError(f"Workspace '{name}' not found")
     workspace = json.loads(wf.read_text(encoding="utf-8"))
-    relations = workspace.get("relations")
-    return relations if isinstance(relations, list) else []
+    return _read_relations(workspace.get("relations"), name)
 
 
 def set_relations(

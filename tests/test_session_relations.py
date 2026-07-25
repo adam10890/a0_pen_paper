@@ -109,6 +109,72 @@ class RelationsBackCompatTests(unittest.TestCase):
             self.assertEqual(relations, [{"type": "REFERENCE", "target": "other"}])
 
 
+class RelationsReadPathValidationTests(unittest.TestCase):
+    """The write path validates; a hand-edited or corrupted file can still
+    carry malformed entries, so the read path must apply the same rules."""
+
+    MALFORMED = [
+        "garbage",                                 # not a dict
+        {"type": "BOGUS", "target": "x"},          # invalid type
+        None,                                      # not a dict
+        {"type": "REFERENCE"},                     # missing target
+        {"type": "REFERENCE", "target": ""},       # empty target
+        {"type": "COMMENT", "target": "demo"},     # self-relation
+        {"type": "REFERENCE", "target": "real"},   # the only valid entry
+    ]
+
+    def _cfg_with_malformed(self, td):
+        cfg = {"runtime_dir": str(Path(td) / "pen_and_paper")}
+        wf = sessions_store.sessions_dir(cfg) / "demo" / "workspace.json"
+        _write_workspace(wf, name="demo", extra={"relations": list(self.MALFORMED)})
+        return cfg, wf
+
+    def test_list_relations_skips_malformed_entries(self):
+        with TemporaryDirectory() as td:
+            cfg, _ = self._cfg_with_malformed(td)
+            self.assertEqual(
+                sessions_store.list_relations("demo", cfg=cfg),
+                [{"type": "REFERENCE", "target": "real"}],
+            )
+
+    def test_relation_count_excludes_malformed_entries(self):
+        with TemporaryDirectory() as td:
+            cfg, _ = self._cfg_with_malformed(td)
+            session = sessions_store.list_sessions(cfg)["sessions"][0]
+            self.assertEqual(session["relation_count"], 1)
+            self.assertEqual(session["relations"], [{"type": "REFERENCE", "target": "real"}])
+
+    def test_relation_target_filter_ignores_invalid_relation_type(self):
+        with TemporaryDirectory() as td:
+            cfg, _ = self._cfg_with_malformed(td)
+            # target "x" only appears on an entry whose type is invalid
+            hit = sessions_store.list_sessions(cfg, filter={"relation_target": "x"})
+            self.assertEqual(hit["sessions"], [])
+            valid = sessions_store.list_sessions(cfg, filter={"relation_target": "real"})
+            self.assertEqual(len(valid["sessions"]), 1)
+
+    def test_read_path_does_not_rewrite_malformed_file(self):
+        with TemporaryDirectory() as td:
+            cfg, wf = self._cfg_with_malformed(td)
+            before = wf.read_text(encoding="utf-8")
+
+            sessions_store.list_relations("demo", cfg=cfg)
+            sessions_store.list_sessions(cfg)
+
+            self.assertEqual(before, wf.read_text(encoding="utf-8"))
+            self.assertEqual(len(json.loads(before)["relations"]), len(self.MALFORMED))
+
+    def test_all_malformed_reads_as_empty_and_has_relations_is_false(self):
+        with TemporaryDirectory() as td:
+            cfg = {"runtime_dir": str(Path(td) / "pen_and_paper")}
+            wf = sessions_store.sessions_dir(cfg) / "demo" / "workspace.json"
+            _write_workspace(wf, name="demo", extra={"relations": ["garbage", None]})
+
+            self.assertEqual(sessions_store.list_relations("demo", cfg=cfg), [])
+            hit = sessions_store.list_sessions(cfg, filter={"has_relations": True})
+            self.assertEqual(hit["sessions"], [])
+
+
 class SetRelationsTests(unittest.TestCase):
     def test_set_relations_round_trips(self):
         with TemporaryDirectory() as td:
