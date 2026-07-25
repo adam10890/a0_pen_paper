@@ -59,6 +59,12 @@ template integration, and archive-oriented task notes.
 - User-facing workflow docs live in `docs/pen-paper-workflows/`.
 - Agent-facing skills live in `skills/`.
 - Web/API surfaces should remain thin wrappers over helper logic.
+- **Always update `docs/dev-tracker.html` when you land durable work.** It is
+  the running development log for this plugin: every feature, fix, schema
+  change, or decision that outlives the session belongs there, in the same
+  change that makes it. Treat a missing tracker entry as incomplete work, not
+  as a follow-up. Note the tracker is currently listed in `.gitignore` as an
+  internal file, so it is maintained in the working copy and not published.
 
 ## Verification
 
@@ -69,6 +75,8 @@ template integration, and archive-oriented task notes.
   change.
 - Check `README.md` and `docs/CAPABILITIES_AND_ROADMAP.md` when changing
   durable behavior.
+- Confirm `docs/dev-tracker.html` has an entry for the work just completed
+  before considering a change done.
 
 ## Child DOX Index
 
