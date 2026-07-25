@@ -22,6 +22,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install test dependencies
+        run: pip install pytest pydantic pyyaml
+
       - name: Validate plugin manifest
         run: python -m pytest tests/test_plugin_manifest.py -q
 
