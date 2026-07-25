@@ -27,8 +27,30 @@ template integration, and archive-oriented task notes.
   `usr/pen_and_paper/diagrams/` or a session's `diagrams/` folder, never in
   plugin source.
 
+## Guidance layering (read before changing any agent-facing text)
+
+This plugin ships guidance at three levels with different delivery guarantees.
+Put each rule at the level whose guarantee it needs:
+
+| Level | Delivered | Use for |
+|---|---|---|
+| `prompts/*.md` | **Always** — injected into the system prompt | Rules that must hold on every model: section vocabulary, required sequence, status values |
+| `skills/*/SKILL.md` | Only when a trigger matches | Methodology, elaboration, authoring procedures |
+| `data/templates/`, `data/config/rules.yaml` | Only when read/loaded | Long-form operating manual; machine-readable rule data |
+
+Consequence: a correctness rule whose only home is a skill is a rule a small
+model may never see. Elaborate in the skill, but state it in `prompts/` first.
+
+Separately, `AGENTS.md` (this tree) is **development-time only** — no runtime
+code reads it. Rules for the agent *using* `pen_paper` never belong here; they
+belong in `prompts/`. Rules for the agent *editing this repo* belong here.
+
 ## Work Guidance
 
+- **Knowledge/hands separation.** Methodology lives in `skills/` +
+  `data/templates/` + `data/config/rules.yaml`; `tools/` holds execution and
+  returns pointers, not prose. Do not re-embed onboarding/help text into tool
+  code. See `tools/AGENTS.md` for the full invariant list.
 - Main tool code lives in `tools/`.
 - Workflow/session persistence helpers live in `helpers/`.
 - Diagram XML generation helpers live in `helpers/`; Agent-facing diagram

@@ -143,6 +143,48 @@ def check_execution_log_section() -> bool:
     return _fail("execution_log in VALID_SECTIONS", "not found in pen_paper.py")
 
 
+def check_prompt_section_parity() -> bool:
+    """The always-injected tool prompt must name every VALID_SECTIONS entry.
+
+    `prompts/agent.system.tool.pen_paper.md` is the only guidance every model
+    receives — skills load only on a trigger match. A section the tool accepts
+    but the prompt omits is invisible to any model that never loads the skill,
+    which is exactly how cross-model behavior diverges. Enforced per
+    `prompts/AGENTS.md`.
+    """
+    import re
+
+    tool_text = (PLUGIN_DIR / "tools" / "pen_paper.py").read_text(encoding="utf-8")
+    prompt_path = PLUGIN_DIR / "prompts" / "agent.system.tool.pen_paper.md"
+    if not prompt_path.exists():
+        return _fail("prompt/section parity", "tool prompt missing")
+    prompt_text = prompt_path.read_text(encoding="utf-8")
+
+    block = re.search(r"VALID_SECTIONS\s*=\s*\[(.*?)\]", tool_text, re.S)
+    if not block:
+        return _fail("prompt/section parity", "VALID_SECTIONS not found")
+    sections = re.findall(r'"(\w+)"', block.group(1))
+
+    # Scope the comparison to the `section` argument bullet, not the whole file —
+    # a name mentioned incidentally elsewhere must not mask its absence from the
+    # authoritative list the model reads when choosing a section.
+    arg = re.search(
+        r"^- `section`:.*?(?=^- `|^#|\Z)", prompt_text, re.S | re.M
+    )
+    if not arg:
+        return _fail("prompt/section parity", "`section` argument bullet not found in prompt")
+    arg_text = arg.group(0)
+    missing = [s for s in sections if f"`{s}`" not in arg_text]
+    if missing:
+        return _fail("prompt/section parity", f"`section` bullet omits {missing}")
+
+    # Status vocabulary must also survive in the always-injected prompt.
+    for token in ("pending", "running", "done", "failed", "skipped"):
+        if token not in prompt_text:
+            return _fail("prompt/section parity", f"status '{token}' missing from prompt")
+    return _ok("prompt/section parity", f"{len(sections)} sections + status vocabulary")
+
+
 def check_config_wiring() -> bool:
     text = (PLUGIN_DIR / "tools" / "pen_paper.py").read_text(encoding="utf-8")
     if "load_plugin_config" in text and "feature_enabled" in text:
@@ -281,6 +323,7 @@ def main() -> int:
     checks = [
         check_py_compile(),
         check_execution_log_section(),
+        check_prompt_section_parity(),
         check_config_wiring(),
         check_registry_integrity(),
         check_seed_templates(),
