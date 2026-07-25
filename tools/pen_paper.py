@@ -21,7 +21,6 @@ except Exception:
         _parse_yaml_minimal = None
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from helpers.tool import Tool, Response
 from helpers import files
@@ -640,7 +639,7 @@ class PenPaper(Tool):
         
 
         if context_info:
-            response_msg += f"**Context retrieved from similar past sessions**\n\n"
+            response_msg += "**Context retrieved from similar past sessions**\n\n"
         
         if template_info:
             response_msg += template_info + "\n"
@@ -654,7 +653,7 @@ class PenPaper(Tool):
                 response_msg += f"**🔄 Available Sub-Workflows:** {', '.join(base_list)}\n"
                 response_msg += f"**Hooks:** stuck→{hooks.get('on_stuck', 'debugging')} | unknown→{hooks.get('on_unknown', 'research')} | complete→{hooks.get('on_complete', 'validation')}\n\n"
         
-        response_msg += f"**Next:** Start documenting with:\n"
+        response_msg += "**Next:** Start documenting with:\n"
         response_msg += f"`pen_paper(action='update', name='{name}', section='notes', content='...')`"
 
         
@@ -965,7 +964,7 @@ class PenPaper(Tool):
                 archive_info = "**Deleted:** Session deleted (ephemeral mode, no vectorization)"
             else:
                 # Normal archiving
-                archive_dir = files.get_abs_path(f"usr/pen_and_paper/sessions/archive")
+                archive_dir = files.get_abs_path("usr/pen_and_paper/sessions/archive")
                 Path(archive_dir).mkdir(parents=True, exist_ok=True)
                 
 

@@ -10,7 +10,6 @@ This script can be run from the Plugins UI for manual maintenance tasks:
 """
 
 import sys
-import json
 import shutil
 from pathlib import Path
 
@@ -196,7 +195,7 @@ def run_validate():
             print(f"\n  WARN plugin.yaml parse error: {e}")
             config = {}
         if config:
-            print(f"\nPlugin configuration:")
+            print("\nPlugin configuration:")
             print(f"  name: {config.get('name', 'N/A')}")
             print(f"  version: {config.get('version', 'N/A')}")
             print(f"  always_enabled: {config.get('always_enabled', 'N/A')}")

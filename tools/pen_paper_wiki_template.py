@@ -234,8 +234,8 @@ class PenPaperWikiTemplate(Tool):
         parts = [
             f"## Wiki Templates ({'cached' if cached else 'fresh'})",
             "",
-            f"| Template | Wiki | Phases | Budget | Description |",
-            f"|----------|------|--------|--------|-------------|",
+            "| Template | Wiki | Phases | Budget | Description |",
+            "|----------|------|--------|--------|-------------|",
         ]
 
         for tmpl in templates:

@@ -8,8 +8,6 @@ Vendored implementation to avoid cross-plugin imports. Parses only the subset ne
 
 No external dependencies. Safe fallback on malformed input.
 """
-import os
-import re
 import json
 import time
 from pathlib import Path
