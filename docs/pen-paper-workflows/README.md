@@ -10,6 +10,7 @@ Specification documents (no plugin code changes in this phase). Created per arch
 |----------|----------|
 | **[AGENT_HANDOFF.md](AGENT_HANDOFF.md)** | **Master doc for agents — read first** |
 | **[VERIFICATION_CHECKLIST.md](VERIFICATION_CHECKLIST.md)** | **Full test plan (Tiers A–F)** |
+| [UAT_CROSS_MODEL.md](UAT_CROSS_MODEL.md) | Small vs flagship model — does the same task yield the same session shape? |
 
 **Quick verify:**
 

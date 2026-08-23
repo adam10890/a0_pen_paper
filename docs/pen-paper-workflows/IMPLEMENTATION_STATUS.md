@@ -58,7 +58,9 @@ Artifact: `usr/workdir/pen_paper_phase1_artifacts/tier_ab_verification_20260528_
 
 ## Deferred / manual
 
-- [ ] Cross-model UAT matrix (`UAT_CROSS_MODEL.md`)
+- [ ] Cross-model UAT matrix — protocol + comparator ready, **not yet executed**
+      (needs a live A0 with two model tiers): [`UAT_CROSS_MODEL.md`](UAT_CROSS_MODEL.md)
+      + `scripts/compare_cross_model_runs.py`. Record results in its §6.
 - [ ] `a0_skill_creator` eval run (after 2 successful workflow runs)
 - [x] Live session etag on UI append (Wave 4c)
 - [ ] Template Canvas etag / stale-save rejection (Wave 1 optional)
